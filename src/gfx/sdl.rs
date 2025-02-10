@@ -50,11 +50,8 @@ impl Sdl {
         // Load OpenGL functions
         gl::load_with(|s| video.gl_get_proc_address(s) as *const _);
 
-        // Get display index (typically 0 is the default display)
-        let display_index = 0;
-
         // Get actual High-DPI scaling (drawable size)
-        let (drawable_width, drawable_height) = window.drawable_size();
+        let (drawable_width, _drawable_height) = window.drawable_size();
         let dpi = drawable_width as f32 / WINDOW_WIDTH as f32;
 
         Self {

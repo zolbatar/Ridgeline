@@ -39,10 +39,7 @@ pub fn convert_paths(geo: HashMap<String, Geo>) -> HashMap<String, GeoWithPath> 
             // Interiors
             v.interiors().iter().for_each(|v| {
                 let path_interior = build_path(v);
-                //                   println!("{:?}", &path.count_points());
-                //                   println!("{:?}", &path_interior.count_points());
                 path = op(&path, &path_interior, PathOp::Difference).unwrap();
-                //                   println!("{:?}\n", &path.count_points());
             });
 
             polys.push(path);
@@ -77,19 +74,19 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<String, GeoWithPath>) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_style(Style::Stroke);
-    paint.set_color(Color::WHITE);
-    paint.set_stroke_width(0.001);
+    paint.set_color(Color::BLACK);
+    paint.set_stroke_width(0.1);
 
     let mut paint_fill = Paint::default();
-    paint.set_anti_alias(true);
-    paint.set_style(Style::Fill);
+    paint_fill.set_anti_alias(true);
+    paint_fill.set_style(Style::Fill);
 
     for (_admin, geo) in polys {
         let colour = COLOR_PALETTE[((geo.map_colour - 1) as usize) % COLOR_PALETTE.len()];
         paint_fill.set_color(colour);
         for path in geo.polys.iter() {
-            skia.get_canvas().draw_path(&path, &paint_fill);
-            skia.get_canvas().draw_path(&path, &paint);
+            skia.get_canvas().draw_path(path, &paint_fill);
+            skia.get_canvas().draw_path(path, &paint);
         }
     }
 }

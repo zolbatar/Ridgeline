@@ -1,4 +1,4 @@
-use crate::geo::load::load;
+use crate::geo::load::{create_geo, load};
 use crate::geo::paths::draw_all_paths;
 use crate::gfx::sdl::Sdl;
 use crate::gfx::skia::Skia;
@@ -12,7 +12,7 @@ fn main() {
     let mut sdl = Sdl::new();
     let mut skia = Skia::new(&sdl);
 
-    //create_geo();
+    create_geo();
     let paths = load().expect("Failed to load geojson");
 
     loop {
