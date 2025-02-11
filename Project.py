@@ -1,0 +1,144 @@
+import geopandas as gpd
+import pandas as pd
+from shapely.affinity import scale
+from shapely.geometry.geo import mapping, shape, box
+from shapely.lib import unary_union
+
+geojson_file = "/Users/daryl/OSM/AllCountries.geojson"
+gdf = gpd.read_file(geojson_file)
+
+
+# Define function to shift longitudes properly
+def fix_russia_longitudes(geometry):
+    """ Adds 360° to negative longitude values for Russia """
+    if geometry.is_empty:
+        return geometry
+
+    geojson_geom = mapping(geometry)  # Convert to GeoJSON format
+    coords_key = "coordinates" if "coordinates" in geojson_geom else None
+
+    if coords_key:
+        def adjust_coords(coords):
+            return [(lon + 360 if lon < 0 else lon, lat) for lon, lat in coords]
+
+        def process_geometry(geom):
+            if isinstance(geom[0], (list, tuple)):  # MultiPolygon or Polygon
+                return [process_geometry(part) for part in geom] if isinstance(geom[0][0], (list, tuple)) else adjust_coords(geom)
+            return geom
+
+        geojson_geom["coordinates"] = process_geometry(geojson_geom["coordinates"])
+
+    return shape(geojson_geom)  # Convert back to Shapely geometry
+
+
+def round_remove_digits(num, digits):
+    factor = 10 ** digits  # Compute the factor to remove precision
+    return round(num / factor) * factor  # Round and multiply back
+
+
+# Define a function to round coordinates
+def round_coordinates(geometry, precision=4):
+    """ Recursively rounds coordinates in a geometry object. """
+
+    def round_point(point):
+        return [round_remove_digits(coord, precision) for coord in point]
+
+    def process_coords(coords):
+        if isinstance(coords[0], (list, tuple)):  # Multi-point structures
+            return [process_coords(subcoords) for subcoords in coords]
+        return round_point(coords)  # Single coordinate pair
+
+    geojson_geom = mapping(geometry)  # Convert to GeoJSON-like dictionary
+    geojson_geom["coordinates"] = process_coords(geojson_geom["coordinates"])
+    return shape(geojson_geom)  # Convert back to Shapely geometry
+
+
+# Function to enforce valid polygons and remove spurs
+def fix_geometries(geometry, min_area=1e-6):
+    """ Removes spurs, fixes self-intersections, and enforces polygon structures. """
+    geometry = geometry.buffer(0)  # Fix self-intersections
+
+    # Remove small spurs or degenerate polygons
+    if geometry.geom_type in ["Polygon", "MultiPolygon"]:
+        if geometry.area < min_area:  # Remove tiny polygons
+            return None
+        return geometry
+
+    return None  # Remove any remaining invalid geometry
+
+
+# Fix Russia's longitudes first
+gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"] = gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"].apply(fix_russia_longitudes)
+
+# Merge all Russia's polygons into one contiguous shape
+russia_gdf = gdf[gdf["ADM0_A3"] == "RUS"]
+merged_russia = unary_union(russia_gdf.geometry)
+
+# Update Russia in the GeoDataFrame
+gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"] = merged_russia
+
+# Define latitude crop range (adjust as needed)
+min_lat = -80  # 5th percentile latitude (adjust if necessary)
+max_lat = 60  # 95th percentile latitude
+min_lon = -200  # 5th percentile latitude (adjust if necessary)
+max_lon = 200  # 95th percentile latitude
+
+# Create a bounding box (min_x, min_y, max_x, max_y)
+#bbox = box(min_lon, min_lat, max_lon, max_lat)
+
+# Clip the GeoDataFrame
+#gdf = gpd.clip(gdf, bbox)  # gdf[gdf.intersects(bbox)]
+
+gdf["geometry"] = gdf["geometry"].apply(lambda geom: scale(geom, xfact=0.92, yfact=1.0, origin=(0, 0)))
+
+# Convert to Web Mercator projection
+gdf = gdf.to_crs("EPSG:3857")
+# gdf = gdf.to_crs("EPSG:6933")  # Equal-area
+
+# Apply rounding to all geometries
+gdf["geometry"] = gdf["geometry"].apply(lambda geom: round_coordinates(geom, precision=3))  # Reduce decimal places
+
+# Apply geometry fixes (removes spurs)
+gdf["geometry"] = gdf["geometry"].apply(fix_geometries)
+
+# Simplify each country's polygon while keeping properties
+tolerance = 1.0  # Adjust for more or less simplification
+gdf["geometry"] = gdf["geometry"].simplify(tolerance, preserve_topology=True)
+
+# Save or plot
+gdf.to_file("output_mercator.geojson", driver="GeoJSON")
+
+csv_mapping_file = "all.csv"
+output_file = "merged_by_region.geojson"
+
+# Load the CSV mapping (ADM3 -> region_id)
+csv_df = pd.read_csv(csv_mapping_file)
+
+# Ensure column names match (GeoJSON uses `ADM0_A3` for country codes)
+csv_df.rename(columns={"alpha-3": "ADM0_A3", "region": "region_id"}, inplace=True)
+
+# Load the CSV mapping (ISO Alpha-3 -> region_id)
+csv_df = pd.read_csv(csv_mapping_file)
+
+# Ensure column names match (GeoJSON uses `ADM0_A3` for country codes)
+csv_df.rename(columns={"alpha-3": "ADM0_A3", "sub-region-code": "region_id"}, inplace=True)
+
+# Merge `region_id` into the GeoDataFrame based on `alpha-3` country codes
+gdf = gdf.merge(csv_df[["ADM0_A3", "region_id"]], on="ADM0_A3", how="left")
+
+# Drop rows where region_id is missing
+gdf = gdf[gdf["region_id"].notnull()]
+
+# Group by `region_id` and fully dissolve all geometries
+merged_gdf = gdf.dissolve(by="region_id", aggfunc="first")
+
+# Apply `unary_union` to truly merge touching geometries (removes internal borders)
+merged_gdf["geometry"] = merged_gdf["geometry"].apply(lambda x: unary_union(x) if x else None)
+
+# Remove unnecessary columns, keep only `region_id`
+merged_gdf = merged_gdf.reset_index()[["region_id", "geometry"]]
+
+# Save as a new GeoJSON file
+merged_gdf.to_file(output_file, driver="GeoJSON")
+
+print(f"Merged and dissolved GeoJSON saved as '{output_file}' with `region_id` as the only property.")

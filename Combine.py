@@ -39,7 +39,7 @@ merged_russia = unary_union(russia_gdf.geometry)
 gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"] = merged_russia
 
 # Simplify each country's polygon while keeping properties
-tolerance = 0.01  # Adjust for more or less simplification
+tolerance = 0.1  # Adjust for more or less simplification
 gdf["geometry"] = gdf["geometry"].simplify(tolerance, preserve_topology=True)
 
 # Save the new simplified GeoJSON with properties retained

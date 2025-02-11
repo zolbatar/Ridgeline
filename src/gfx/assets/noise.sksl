@@ -1,0 +1,21 @@
+// SkSL Shader to add noise and blend with a base color
+
+uniform float u_noiseMix;
+uniform half4 u_baseColor;
+
+float hash(float p) {
+    p = fract(p * 0.1031);
+    p *= p + 33.33;
+    p *= p + p;
+    return fract(p);
+}
+
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+half4 main(float2 coord) {
+    float n = hash((rand(coord * 0.1) + rand(coord * 1.0) + rand(coord * 10.0) + rand(coord * 100.0)) / 4.0);
+    half3 noiseColor = mix(half3(0.0, 0.0, 0.0), half3(1.0, 1.0, 1.0), n); // Black to white based on noise
+    return half4(mix(u_baseColor.rgb, noiseColor, u_noiseMix), 1.0);
+}

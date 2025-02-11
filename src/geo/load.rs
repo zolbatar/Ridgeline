@@ -1,5 +1,6 @@
-use crate::geo::data::{Geo, GeoWithPath};
+use crate::geo::data::{Geo, GeoRegion, GeoWithPath};
 use crate::geo::paths::convert_paths;
+use geo::Geometry;
 use geojson::GeoJson;
 use std::collections::HashMap;
 use std::error::Error;
@@ -7,62 +8,76 @@ use std::fs::File;
 use std::io::BufReader;
 
 pub fn create_geo() {
-    let geo = load_geojson().expect("Unable to load GEO");
+    let geo = load_geojson();
     serialize(geo).expect("Unable to serialize GEO");
 }
 
-fn load_geojson() -> Result<HashMap<String, Geo>, Box<dyn Error>> {
+fn load_geojson() -> HashMap<u16, Geo> {
     // Open and read the .geojson file
-    //let file = File::open("/Users/daryl/OSM/AllCountries.geojson")?;
-    //let file = File::open("flattened_countries.geojson")?;
-    let file = File::open("simplified_countries.geojson")?;
+    let file = File::open("merged_by_region.geojson").expect("Unable to open GEO file");
     let reader = BufReader::new(file);
 
     // Parse the file as GeoJSON
-    let geojson: GeoJson = serde_json::from_reader(reader)?;
+    let geojson: GeoJson = serde_json::from_reader(reader).expect("Unable to read geojson");
 
     // Extract features (country boundaries)
     let mut m = HashMap::new();
+    let mut count = 0usize;
     if let GeoJson::FeatureCollection(fc) = geojson {
         for feature in fc.features {
             let fp = feature.properties.unwrap();
-            let admin = fp.get("ADM0_A3").unwrap().as_str().unwrap().to_string();
-            let name = fp.get("NAME").unwrap().as_str().unwrap().to_string();
-            let pop = fp.get("POP_EST").unwrap().as_f64().unwrap();
-            let mut map_colour = fp.get("MAPCOLOR13").unwrap().as_i64().unwrap();
-            if map_colour == -99 {
-                map_colour = 14;
-            }
-
+            let rc = fp.get("region_id").unwrap().as_number().unwrap();
+            let region_code: u16 = rc.as_f64().unwrap() as u16;
             if let Some(geometry) = feature.geometry {
-                let geo_geometry: geo::Geometry<f64> = geometry.try_into()?;
-                m.insert(
-                    admin,
-                    Geo {
-                        name,
-                        population: pop as usize,
-                        map_colour: map_colour as u8,
-                        geo: geo_geometry,
-                    },
-                );
+                let geo_geometry: geo::Geometry<f64> = geometry.try_into().unwrap();
+
+                // We don't want the islands
+                let region = GeoRegion::from_id(region_code).unwrap();
+                match region {
+                    GeoRegion::Melanesia => {}
+                    GeoRegion::Polynesia => {}
+                    GeoRegion::Micronesia => {}
+                    _ => {
+                        let extracted = match geo_geometry {
+                            Geometry::Polygon(polygon) => vec![polygon],              // Single polygon
+                            Geometry::MultiPolygon(multi_polygon) => multi_polygon.0, // Multiple polygons
+                            _ => panic!("Unsupported geo type"),
+                        };
+
+                        // Go through each polygon and decide if we want it
+                        let mut v = Vec::new();
+                        for poly in extracted.into_iter() {
+                            v.push(poly);
+                            count += 1;
+                        }
+                        m.insert(
+                            region_code,
+                            Geo {
+                                geo: v,
+                                region,
+                            },
+                        );
+                    }
+                }
             }
         }
     }
+    println!("Polygon count: {}", count);
 
-    Ok(m)
+    m
 }
 
-fn serialize(m: HashMap<String, Geo>) -> Result<(), Box<dyn Error>> {
+fn serialize(m: HashMap<u16, Geo>) -> Result<(), Box<dyn Error>> {
     let file = File::create("Geo.cbor")?;
     let writer = std::io::BufWriter::new(file);
     serde_cbor::to_writer(writer, &m)?;
     Ok(())
 }
 
-pub fn load() -> Result<HashMap<String, GeoWithPath>, Box<dyn Error>> {
+pub fn load() -> Result<HashMap<u16, GeoWithPath>, Box<dyn Error>> {
     let file = File::open("Geo.cbor")?;
     let reader = BufReader::new(file);
-    let data: HashMap<String, Geo> = serde_cbor::from_reader(reader)?;
+    let data: HashMap<u16, Geo> = serde_cbor::from_reader(reader)?;
 
     // Convert to Skia
     let paths = convert_paths(data);
