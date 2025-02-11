@@ -13,8 +13,9 @@ pub fn create_geo() {
 
 fn load_geojson() -> Result<HashMap<String, Geo>, Box<dyn Error>> {
     // Open and read the .geojson file
-    //    let file = File::open("/Users/daryl/OSM/AllCountries.geojson")?;
-    let file = File::open("cropped_file.geojson")?;
+    //let file = File::open("/Users/daryl/OSM/AllCountries.geojson")?;
+    //let file = File::open("cropped_file.geojson")?;
+    let file = File::open("simplified_countries.geojson")?;
     let reader = BufReader::new(file);
 
     // Parse the file as GeoJSON
@@ -62,9 +63,8 @@ pub fn load() -> Result<HashMap<String, GeoWithPath>, Box<dyn Error>> {
     let file = File::open("Geo.cbor")?;
     let reader = BufReader::new(file);
     let data: HashMap<String, Geo> = serde_cbor::from_reader(reader)?;
-    
+
     // Convert to Skia
     let paths = convert_paths(data);
     Ok(paths)
 }
-
