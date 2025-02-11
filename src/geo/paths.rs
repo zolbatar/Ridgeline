@@ -2,7 +2,7 @@ use crate::geo::data::{Geo, GeoWithPath};
 use crate::gfx::skia::Skia;
 use geo::{Geometry, LineString};
 use skia_safe::paint::Style;
-use skia_safe::{op, scalar, Color, Paint, Path, PathFillType, PathOp, Point};
+use skia_safe::{op, scalar, Color, Paint, Path, PathOp, Point};
 use std::collections::HashMap;
 
 const COLOR_PALETTE: [Color; 14] = [
@@ -45,9 +45,6 @@ pub fn convert_paths(geo: HashMap<String, Geo>) -> HashMap<String, GeoWithPath> 
             polys.push(path);
         });
 
-        println!("{}", admin);
-  //      let merged = merge_paths(polys);
-
         paths.insert(
             admin,
             GeoWithPath {
@@ -55,14 +52,13 @@ pub fn convert_paths(geo: HashMap<String, Geo>) -> HashMap<String, GeoWithPath> 
                 population: y.population,
                 map_colour: y.map_colour,
                 polys,
-//                polys: vec![merged],
             },
         );
     }
     paths
 }
 
-fn merge_paths(paths: Vec<Path>) -> Path {
+fn _merge_paths(paths: Vec<Path>) -> Path {
     let mut combined_path = Path::new();
     for path in paths {
         let result = if !combined_path.is_empty() {
@@ -77,17 +73,11 @@ fn merge_paths(paths: Vec<Path>) -> Path {
     combined_path
 }
 
-fn build_path(poly: &LineString, admin: &str, is_exterior: bool) -> Path {
+fn build_path(poly: &LineString, _admin: &str, _is_exterior: bool) -> Path {
     let mut path = Path::new();
     poly.points().for_each(|point| {
-        let mut x = point.x() as scalar;
-        let y = point.y() as scalar;
-
-        // Switch Russia
-/*        if admin == "RUS" && x < 0.0 {
-            x += 360.0;
-        }*/
-
+        let x = point.x() as scalar;// / 25000.0;
+        let y = point.y() as scalar;// / 25000.0;
         if path.is_empty() {
             path.move_to(Point::new(x, -y));
         } else {
@@ -95,8 +85,6 @@ fn build_path(poly: &LineString, admin: &str, is_exterior: bool) -> Path {
         }
     });
     path.close();
-//    path.set_fill_type(PathFillType::Winding);
-//    path.simplify();
     path
 }
 
@@ -104,7 +92,7 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<String, GeoWithPath>) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_style(Style::Stroke);
-    paint.set_color(Color::WHITE);
+    paint.set_color(Color::TRANSPARENT);
     paint.set_stroke_width(0.1);
 
     let mut paint_fill = Paint::default();
@@ -116,7 +104,7 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<String, GeoWithPath>) {
         paint_fill.set_color(colour);
         for path in geo.polys.iter() {
             skia.get_canvas().draw_path(path, &paint_fill);
-            skia.get_canvas().draw_path(path, &paint);
+//            skia.get_canvas().draw_path(path, &paint);
         }
     }
 }

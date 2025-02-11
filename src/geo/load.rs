@@ -14,7 +14,7 @@ pub fn create_geo() {
 fn load_geojson() -> Result<HashMap<String, Geo>, Box<dyn Error>> {
     // Open and read the .geojson file
     //let file = File::open("/Users/daryl/OSM/AllCountries.geojson")?;
-    //let file = File::open("cropped_file.geojson")?;
+    //let file = File::open("flattened_countries.geojson")?;
     let file = File::open("simplified_countries.geojson")?;
     let reader = BufReader::new(file);
 

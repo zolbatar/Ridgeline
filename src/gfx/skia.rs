@@ -8,12 +8,18 @@ use skia_safe::{gpu, Canvas, Color, Font, FontMgr, Paint, PaintStyle, Point, Sur
 
 static MAIN_FONT: &[u8] = include_bytes!("assets/NotoSans-Regular.ttf");
 
+pub const MIN_ZOOM: f32 = 4.0;
+pub const MAX_ZOOM: f32 = 16.0;
+
 pub struct Skia {
     context: DirectContext,
     pub surface: Surface,
     pub font_main: Font,
     pub zoom: f32,
+    pub zoom_min: f32,
+    pub zoom_max: f32,
     pub target: Point,
+    pub panning: bool,
 }
 
 pub const FONT_SIZE: f32 = 14.0;
@@ -54,15 +60,17 @@ impl Skia {
         let font_mgr = FontMgr::new();
 
         // Surface
-        let surface =
-            Skia::make_surface(&mut context, (sdl.width as f32 * sdl.dpi) as i32, (sdl.height as f32 * sdl.dpi) as i32);
+        let surface = Skia::make_surface(&mut context, (sdl.width as f32 * sdl.dpi) as i32, (sdl.height as f32 * sdl.dpi) as i32);
 
         let mut skia = Skia {
             context,
             surface,
             font_main: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), FONT_SIZE),
-            zoom: 3.0,
+            zoom: 4.0,
+            zoom_min: MIN_ZOOM,
+            zoom_max: MAX_ZOOM,
             target: Point::new(0.0, 0.0),
+            panning: false,
         };
 
         unsafe {
