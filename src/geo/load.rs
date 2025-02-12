@@ -1,4 +1,4 @@
-use crate::geo::data::{Geo, GeoRegion, GeoWithPath};
+use crate::geo::data::{Geo, GeoRegion, GeoWithPath, Location};
 use crate::geo::paths::convert_paths;
 use geo::Geometry;
 use geojson::GeoJson;
@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use serde_cbor::from_reader;
 
 pub fn create_geo() {
     let geo = load_geojson();
@@ -17,8 +18,9 @@ fn load_geojson() -> HashMap<u16, Geo> {
     let file = File::open("merged_by_region.geojson").expect("Unable to open GEO file");
     let reader = BufReader::new(file);
 
-    // Parse the file as GeoJSON
+    // Parse the files as GeoJSON
     let geojson: GeoJson = serde_json::from_reader(reader).expect("Unable to read geojson");
+    let cities = load_cbor_file("Cities.cbor");
 
     // Extract features (country boundaries)
     let mut m = HashMap::new();
@@ -82,4 +84,16 @@ pub fn load() -> Result<HashMap<u16, GeoWithPath>, Box<dyn Error>> {
     // Convert to Skia
     let paths = convert_paths(data);
     Ok(paths)
+}
+
+
+fn load_cbor_file(file_path: &str) -> Vec<Location> {
+    // Open the CBOR file
+    let file = File::open(file_path).expect("Unable to open GEO file");
+    let reader = BufReader::new(file);
+
+    // Deserialize the CBOR data into a Vec<Location>
+    let locations: Vec<Location> = from_reader(reader).expect("Unable to read GEO file");
+
+    locations
 }

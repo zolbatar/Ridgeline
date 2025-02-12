@@ -1,3 +1,6 @@
+import csv
+import math
+import cbor2
 import geopandas as gpd
 import pandas as pd
 from shapely.affinity import scale
@@ -84,10 +87,10 @@ min_lon = -200  # 5th percentile latitude (adjust if necessary)
 max_lon = 200  # 95th percentile latitude
 
 # Create a bounding box (min_x, min_y, max_x, max_y)
-#bbox = box(min_lon, min_lat, max_lon, max_lat)
+# bbox = box(min_lon, min_lat, max_lon, max_lat)
 
 # Clip the GeoDataFrame
-#gdf = gpd.clip(gdf, bbox)  # gdf[gdf.intersects(bbox)]
+# gdf = gpd.clip(gdf, bbox)  # gdf[gdf.intersects(bbox)]
 
 gdf["geometry"] = gdf["geometry"].apply(lambda geom: scale(geom, xfact=0.92, yfact=1.0, origin=(0, 0)))
 
@@ -142,3 +145,66 @@ merged_gdf = merged_gdf.reset_index()[["region_id", "geometry"]]
 merged_gdf.to_file(output_file, driver="GeoJSON")
 
 print(f"Merged and dissolved GeoJSON saved as '{output_file}' with `region_id` as the only property.")
+
+# Constants
+EARTH_RADIUS = 6378137  # WGS84 radius in meters
+
+def mercator_projection(lat, lon):
+    """
+    Converts latitude and longitude into Mercator projection coordinates.
+
+    :param lat: Latitude in decimal degrees
+    :param lon: Longitude in decimal degrees
+    :return: (x, y) Mercator projection coordinates
+    """
+    # Convert degrees to radians
+    lat_rad = math.radians(lat)
+    lon_rad = math.radians(lon)
+
+    # Mercator projection formula
+    x = EARTH_RADIUS * lon_rad
+    y = EARTH_RADIUS * math.log(math.tan(math.pi / 4 + lat_rad / 2))
+
+    return x, y
+    
+cities_out = []
+with open("/Users/daryl/OSM//allCountries.txt") as f:
+    reader = csv.reader(f, delimiter="\t")
+    pop = 0
+    for row in reader:
+        if len(row) != 19:
+            print("Invalid number of columns: " + str(len(row)))
+            print('|| '.join(row))
+        else:
+            geonameid = row[0]
+            name = row[1]
+            asciiname = row[2]
+            alternames = row[3]
+            latitude = row[4]
+            longitude = row[5]
+            feature_class = row[6]
+            feature_code = row[7]
+            country_code = row[8]
+            cc2 = row[9]
+            admin1_code = row[10]
+            admin2_code = row[11]
+            admin3_code = row[12]
+            admin4_code = row[13]
+            population = row[14]
+            elevation = row[15]
+            dem = row[16]
+            timezone = row[17]
+            mod_date = row[18]
+            if feature_class == 'P' and (
+                    feature_code == 'PPLA' or feature_code == 'PPLA2' or feature_code == 'PPLA3' or feature_code == 'PPLA4' or feature_code == 'PPLA5' or feature_code == 'PPLC' or feature_code == 'PPLS' or feature_code == 'PPL'):
+                if int(population) > 100000:
+                    x, y = mercator_projection(float(latitude), float(longitude))
+                    print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
+                    cities_out.append([name, float(x), float(y), int(population)])#, countries[country_code]])
+                    pop = pop + int(population)
+                    #        else:
+                    #            print(name, feature_class, feature_code, population)
+
+cbor_data = cbor2.dumps(cities_out)
+with open("Cities.cbor", 'wb') as o:
+    o.write(cbor_data)
