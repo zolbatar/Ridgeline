@@ -77,7 +77,7 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<u16, GeoWithPath>) {
         if geo.enabled {
             paint_fill.set_color(colour);
         } else {
-            paint_fill.set_color(Color::DARK_GRAY);
+            paint_fill.set_color(Color::from_argb(96, 80, 80, 80));
         }
         for path in geo.polys.iter() {
             skia.get_canvas().draw_path(path, &paint_fill);
