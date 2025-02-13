@@ -12,6 +12,8 @@ use skia_safe::{
 static MAIN_FONT: &[u8] = include_bytes!("assets/NotoSans-Regular.ttf");
 const NOISE_SKSL: &str = include_str!("assets/noise.sksl");
 const NOISE_MIX: f32 = 0.075;
+pub const FONT_SIZE: f32 = 14.0;
+pub const LABEL_SIZE: f32 = 60.0;
 
 pub const MIN_ZOOM: f32 = 0.03;
 pub const MAX_ZOOM: f32 = 1.0;
@@ -27,12 +29,9 @@ pub struct Skia {
     pub target: Point,
     pub panning: bool,
     pub noise_shader: RuntimeEffect,
-    pub _drop_shadow: Option<ImageFilter>,
+    pub drop_shadow: Option<ImageFilter>,
     pub _drop_shadow_white: Option<ImageFilter>,
 }
-
-pub const FONT_SIZE: f32 = 14.0;
-pub const LABEL_SIZE: f32 = 10.0;
 
 impl Skia {
     fn make_surface(context: &mut DirectContext, width: i32, height: i32) -> Surface {
@@ -73,7 +72,7 @@ impl Skia {
         let noise_shader = RuntimeEffect::make_for_shader(NOISE_SKSL, None).expect("Failed to make runtime effect");
 
         // Filters
-        let drop_shadow = drop_shadow_only(Vector::new(1.5, 1.5), (0.5, 0.5), Color::from_argb(64, 0, 0, 0), None, None, None);
+        let drop_shadow = drop_shadow_only(Vector::new(3.0, 3.0), (5.0, 5.0), Color::from_argb(192, 0, 0, 0), None, None, None);
         let drop_shadow_white = drop_shadow_only(Vector::new(1.5, 1.5), (2.0, 2.0), Color::from_argb(64, 255, 255, 255), None, None, None);
 
         // Surface
@@ -90,7 +89,7 @@ impl Skia {
             target: Point::new(0.0, -5000.0),
             panning: false,
             noise_shader,
-            _drop_shadow: drop_shadow,
+            drop_shadow,
             _drop_shadow_white: drop_shadow_white,
         };
 

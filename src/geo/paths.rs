@@ -3,9 +3,9 @@ use crate::gfx::skia::Skia;
 use geo::LineString;
 use skia_safe::paint::Style;
 use skia_safe::{scalar, Color, Paint, Path, Point, Vector};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-pub fn convert_paths(geo: HashMap<u16, Geo>) -> HashMap<u16, GeoWithPath> {
+pub fn convert_paths(geo: HashMap<u16, Geo>, regions: &HashSet<u16>) -> HashMap<u16, GeoWithPath> {
     let mut paths = HashMap::new();
     for (admin, y) in geo.into_iter() {
         // Create skia path
@@ -18,6 +18,7 @@ pub fn convert_paths(geo: HashMap<u16, Geo>) -> HashMap<u16, GeoWithPath> {
         paths.insert(
             admin,
             GeoWithPath {
+                enabled: regions.contains(&admin),
                 polys,
                 region: y.region,
             },
@@ -73,7 +74,11 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<u16, GeoWithPath>) {
     // And actual polys
     for geo in polys.values() {
         let colour = geo.region.colour();
-        paint_fill.set_color(colour);
+        if geo.enabled {
+            paint_fill.set_color(colour);
+        } else {
+            paint_fill.set_color(Color::DARK_GRAY);
+        }
         for path in geo.polys.iter() {
             skia.get_canvas().draw_path(path, &paint_fill);
             skia.get_canvas().draw_path(path, &paint);

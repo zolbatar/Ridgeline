@@ -3,7 +3,7 @@ use crate::geo::paths::convert_paths;
 use geo::{Area, Geometry};
 use geojson::GeoJson;
 use serde_cbor::from_reader;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -44,7 +44,7 @@ fn load_geojson() -> HashMap<u16, Geo> {
                 let mut v = Vec::new();
                 for poly in extracted.into_iter() {
                     let area = -poly.signed_area() / 10000000.0;
-                    if area > 10.0 {
+                    if area > 100.0 {
                         v.push(poly);
                         count += 1;
                     }
@@ -71,26 +71,53 @@ fn serialize(m: HashMap<u16, Geo>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn load() -> Result<GeoWithPathAndCities, Box<dyn Error>> {
+pub fn load(wanted_regions: &HashSet<u16>, radius: f64) -> Result<GeoWithPathAndCities, Box<dyn Error>> {
     let file = File::open("Geo.cbor")?;
     let reader = BufReader::new(file);
     let data: HashMap<u16, Geo> = serde_cbor::from_reader(reader)?;
-    let cities = load_cbor_file("Cities.cbor");
+    let cities = load_cbor_file("Cities.cbor", radius, &wanted_regions);
 
     // Convert to Skia
     Ok(GeoWithPathAndCities {
-        geo_with_path: convert_paths(data),
+        geo_with_path: convert_paths(data, &wanted_regions),
         cities,
     })
 }
 
-fn load_cbor_file(file_path: &str) -> Vec<Location> {
+fn load_cbor_file(file_path: &str, radius: f64, wanted_regions: &HashSet<u16>) -> Vec<Location> {
     // Open the CBOR file
     let file = File::open(file_path).expect("Unable to open GEO file");
     let reader = BufReader::new(file);
 
     // Deserialize the CBOR data into a Vec<Location>
-    let locations: Vec<Location> = from_reader(reader).expect("Unable to read GEO file");
+    let mut locations: Vec<Location> = from_reader(reader).expect("Unable to read GEO file");
+    
+    // Remove we don't want
+    locations.retain(|x| wanted_regions.contains(&(x.region_id as u16)));
 
-    locations
+    // Now only select those that aren't too close to a neighbour, starting at largest down
+    let mut locations_out: Vec<Location> = Vec::new();
+    for location in locations.into_iter() {
+        let mut minimum_distance = f64::INFINITY;
+        for location_out in &locations_out {
+            let dist = calculate_distance(&location, location_out);
+            if dist < minimum_distance {
+                minimum_distance = dist;
+            }
+            if dist < radius {
+                break;
+            }
+        }
+        if minimum_distance >= radius {
+            locations_out.push(location);
+        }
+    }
+
+    locations_out
+}
+
+fn calculate_distance(city1: &Location, city2: &Location) -> f64 {
+    let dx = city1.x - city2.x;
+    let dy = city1.y - city2.y;
+    (dx * dx + dy * dy).sqrt()
 }

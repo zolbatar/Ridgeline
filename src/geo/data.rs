@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Location {
+    pub region_id: i64,
     pub name: String,
     pub x: f64,
     pub y: f64,
@@ -23,6 +24,7 @@ pub struct GeoWithPathAndCities {
 }
 
 pub struct GeoWithPath {
+    pub enabled: bool,
     pub polys: Vec<Path>,
     pub region: GeoRegion,
 }

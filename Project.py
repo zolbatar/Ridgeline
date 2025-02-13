@@ -108,7 +108,7 @@ gdf = gdf.to_crs("EPSG:3857")
 # gdf = gdf.to_crs("EPSG:6933")  # Equal-area
 
 # Apply rounding to all geometries
-gdf["geometry"] = gdf["geometry"].apply(lambda geom: round_coordinates(geom, precision=3))  # Reduce decimal places
+gdf["geometry"] = gdf["geometry"].apply(lambda geom: round_coordinates(geom, precision=1))  # Reduce decimal places
 
 # Apply geometry fixes (removes spurs)
 gdf["geometry"] = gdf["geometry"].apply(fix_geometries)
@@ -175,6 +175,9 @@ valid_feature_codes = {"PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLL", "PPLC", "PPLS"
 # Define excluded country codes
 excluded_countries = {"FM", "PW", "MH", "PF", "AS", "CK", "KI", "TO"}  # Example: Micronesia, Palau, Marshall Islands
 
+# Convert country mapping to a dictionary for fast lookup
+country_to_region = csv_df.set_index("alpha-2")["region_id"].to_dict()
+
 cities_out = []
 with open("/Users/daryl/OSM//allCountries.txt") as f:
     reader = csv.reader(f, delimiter="\t")
@@ -203,13 +206,20 @@ with open("/Users/daryl/OSM//allCountries.txt") as f:
             dem = row[16]
             timezone = row[17]
             mod_date = row[18]
-            if feature_class == "P" and feature_code in valid_feature_codes and country_code not in excluded_countries and int(population) > 250000:
+
+            # Get region_id using country_code lookup, default to None if not found
+            region_id = country_to_region.get(country_code, None)
+            
+            if region_id is not None and feature_class == "P" and feature_code in valid_feature_codes and country_code not in excluded_countries and int(population) > 10000:
                 x, y = mercator_projection(float(latitude), float(longitude))
                 # print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
-                cities_out.append([name, float(x) * 0.92 / 1000.0, float(y) / 1000.0, int(population)])  # , countries[country_code]])
+                cities_out.append([int(region_id), name, float(x) * 0.92 / 1000.0, float(y) / 1000.0, int(population)])  # , countries[country_code]])
                 pop = pop + int(population)
                 #        else:
                 #            print(name, feature_class, feature_code, population)
+
+# Sort by size descending
+cities_out.sort(key=lambda x: x[4], reverse=True)
 
 print("There are " + str(len(cities_out)))
 cbor_data = cbor2.dumps(cities_out)

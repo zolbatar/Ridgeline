@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use crate::geo::load::{create_geo, load};
 use crate::geo::paths::draw_all_paths;
 use crate::gfx::sdl::Sdl;
@@ -16,8 +17,9 @@ fn main() {
     let mut sdl = Sdl::new();
     let mut skia = Skia::new(&sdl);
 
-    create_geo();
-    let geo_and_cities = load().expect("Failed to load geojson");
+    // create_geo();
+    let wanted_regions: HashSet<u16> = HashSet::from([154, 39, 155]);
+    let geo_and_cities = load(&wanted_regions, 500.0).expect("Failed to load geojson");
 
     loop {
         // Start of frame
