@@ -1,5 +1,5 @@
 use crate::geo::data::Location;
-use crate::gfx::skia::Skia;
+use crate::gfx::skia::{clip_circle, Skia};
 use skia_safe::paint::Style;
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{scalar, Color, Paint, Point, Rect};
@@ -8,8 +8,8 @@ pub fn draw_all_cities(skia: &mut Skia, cities: &[Location]) {
     let font = &skia.font_label.clone();
     let radius = 40.0;
     let border_width = 3.0;
-    let corner_radius = radius;
-    let spacing = 5.0;
+    let spacing = 7.0;
+    let corner_radius = radius + spacing;
     let metrics = font.metrics();
     let descent = metrics.1.descent;
 
@@ -22,6 +22,12 @@ pub fn draw_all_cities(skia: &mut Skia, cities: &[Location]) {
     paint_bg.set_anti_alias(true);
     paint_bg.set_style(Style::Fill);
     paint_bg.set_color(Color::GRAY);
+
+    let mut paint_bg_alpha = Paint::default();
+    paint_bg_alpha.set_anti_alias(true);
+    paint_bg_alpha.set_style(Style::Fill);
+    paint_bg_alpha.set_color(Color::DARK_GRAY);
+    paint_bg_alpha.set_alpha(128);
 
     let mut paint_border = Paint::default();
     paint_border.set_anti_alias(true);
@@ -37,7 +43,7 @@ pub fn draw_all_cities(skia: &mut Skia, cities: &[Location]) {
     let canvas = skia.get_canvas();
     cities.iter().for_each(|l| {
         // Width of text
-        let (w, bounds) = font.measure_text(&l.name, Some(&paint));
+        let (w, _bounds) = font.measure_text(&l.name, Some(&paint));
 
         let r1 = Rect::from_xywh(
             l.x as scalar - radius - spacing,
@@ -48,10 +54,15 @@ pub fn draw_all_cities(skia: &mut Skia, cities: &[Location]) {
         let p1 = Point::new(l.x as scalar, -l.y as scalar);
         let p2 = Point::new(l.x as scalar + radius + 8.0, -l.y as scalar + radius - descent /* - h / 2.0*/);
 
+        // Apply the clip circle
+        canvas.save();
+        clip_circle(canvas, p1, radius);
         canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_shadow);
         canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_bg);
         canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_border);
-        canvas.draw_circle(p1, radius, &paint);
+        canvas.restore();
+        canvas.draw_circle(p1, radius, &paint_bg_alpha);
+        canvas.draw_circle(p1, radius, &paint_border);
         canvas.draw_text_align(&l.name, p2, font, &paint, Align::Left);
     })
 }

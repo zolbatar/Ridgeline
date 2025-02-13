@@ -65,8 +65,10 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<u16, GeoWithPath>) {
     let zz = 5.0;
     skia.get_canvas().translate(Vector::new(zz, zz));
     for geo in polys.values() {
-        for path in geo.polys.iter() {
-            skia.get_canvas().draw_path(path, &paint_shadow);
+        if geo.enabled {
+            for path in geo.polys.iter() {
+                skia.get_canvas().draw_path(path, &paint_shadow);
+            }
         }
     }
     skia.get_canvas().restore();

@@ -210,7 +210,7 @@ with open("/Users/daryl/OSM//allCountries.txt") as f:
             # Get region_id using country_code lookup, default to None if not found
             region_id = country_to_region.get(country_code, None)
             
-            if region_id is not None and feature_class == "P" and feature_code in valid_feature_codes and country_code not in excluded_countries and int(population) > 10000:
+            if region_id is not None and feature_class == "P" and feature_code in valid_feature_codes and country_code not in excluded_countries and int(population) > 25000:
                 x, y = mercator_projection(float(latitude), float(longitude))
                 # print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
                 cities_out.append([int(region_id), name, float(x) * 0.92 / 1000.0, float(y) / 1000.0, int(population)])  # , countries[country_code]])

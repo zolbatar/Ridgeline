@@ -44,7 +44,7 @@ fn load_geojson() -> HashMap<u16, Geo> {
                 let mut v = Vec::new();
                 for poly in extracted.into_iter() {
                     let area = -poly.signed_area() / 10000000.0;
-                    if area > 100.0 {
+                    if area > 10.0 {
                         v.push(poly);
                         count += 1;
                     }
@@ -74,12 +74,12 @@ fn serialize(m: HashMap<u16, Geo>) -> Result<(), Box<dyn Error>> {
 pub fn load(wanted_regions: &HashSet<u16>, radius: f64) -> Result<GeoWithPathAndCities, Box<dyn Error>> {
     let file = File::open("Geo.cbor")?;
     let reader = BufReader::new(file);
-    let data: HashMap<u16, Geo> = serde_cbor::from_reader(reader)?;
-    let cities = load_cbor_file("Cities.cbor", radius, &wanted_regions);
+    let data: HashMap<u16, Geo> = from_reader(reader)?;
+    let cities = load_cbor_file("Cities.cbor", radius, wanted_regions);
 
     // Convert to Skia
     Ok(GeoWithPathAndCities {
-        geo_with_path: convert_paths(data, &wanted_regions),
+        geo_with_path: convert_paths(data, wanted_regions),
         cities,
     })
 }

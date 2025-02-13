@@ -1,12 +1,12 @@
-use std::collections::HashSet;
+use crate::geo::cities::draw_all_cities;
 use crate::geo::load::{create_geo, load};
 use crate::geo::paths::draw_all_paths;
 use crate::gfx::sdl::Sdl;
 use crate::gfx::skia::Skia;
 use crate::input::{handle_mouse_button_down, handle_mouse_button_up, handle_mouse_motion, handle_mouse_wheel};
 use sdl2::event::Event;
+use std::collections::HashSet;
 use std::process::exit;
-use crate::geo::cities::draw_all_cities;
 
 mod app_state;
 mod geo;
@@ -17,8 +17,9 @@ fn main() {
     let mut sdl = Sdl::new();
     let mut skia = Skia::new(&sdl);
 
-    // create_geo();
-    let wanted_regions: HashSet<u16> = HashSet::from([154, 39, 155]);
+    create_geo();
+    let wanted_regions: HashSet<u16> = HashSet::from([154, 39, 155, 151, 15, 145]);
+    //let wanted_regions: HashSet<u16> = HashSet::from([53,143,30,151,419,15,21,154,35,34,39,202,145,155]);
     let geo_and_cities = load(&wanted_regions, 500.0).expect("Failed to load geojson");
 
     loop {
@@ -27,7 +28,7 @@ fn main() {
         skia.set_matrix(&sdl);
         skia.set_zoom_target(&sdl);
         draw_all_paths(&mut skia, &geo_and_cities.geo_with_path);
-        draw_all_cities(&mut  skia, &geo_and_cities.cities);
+        draw_all_cities(&mut skia, &geo_and_cities.cities);
 
         // Events
         for event in sdl.event_loop.poll_iter() {
