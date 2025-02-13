@@ -97,7 +97,7 @@ impl Sdl {
         let fps = format!("FPS: {:.0} Zoom: {}, Position: {},{}", self.fps, skia.zoom, skia.target.x, skia.target.y);
         let mut paint = Paint::default();
         paint.set_style(PaintStyle::StrokeAndFill);
-        paint.set_color(skia_safe::Color::BLACK);
+        paint.set_color(skia_safe::Color::WHITE);
         let canvas = skia.surface.canvas();
         canvas.draw_text_align(fps, Point::new(10.0, 30.0), &skia.font_main, &paint, Align::Left);
     }

@@ -10,6 +10,15 @@ from shapely.lib import unary_union
 geojson_file = "/Users/daryl/OSM/AllCountries.geojson"
 gdf = gpd.read_file(geojson_file)
 
+# Extract ISO_A2 and SUBREGION as a dictionary
+country_subregion_dict = dict(zip(gdf["ISO_A2"], gdf["SUBREGION"]))
+
+# Define regions to exclude (example: Micronesia)
+excluded_regions = ["Micronesia", "Polynesia", "Melanesia"]
+
+# Filter out the excluded regions
+filtered_gdf = gdf[~gdf["SUBREGION"].isin(excluded_regions)]
+
 
 # Define function to shift longitudes properly
 def fix_russia_longitudes(geometry):
@@ -108,19 +117,10 @@ gdf["geometry"] = gdf["geometry"].apply(fix_geometries)
 tolerance = 1.0  # Adjust for more or less simplification
 gdf["geometry"] = gdf["geometry"].simplify(tolerance, preserve_topology=True)
 
-# Save or plot
-gdf.to_file("output_mercator.geojson", driver="GeoJSON")
-
 csv_mapping_file = "all.csv"
 output_file = "merged_by_region.geojson"
 
 # Load the CSV mapping (ADM3 -> region_id)
-csv_df = pd.read_csv(csv_mapping_file)
-
-# Ensure column names match (GeoJSON uses `ADM0_A3` for country codes)
-csv_df.rename(columns={"alpha-3": "ADM0_A3", "region": "region_id"}, inplace=True)
-
-# Load the CSV mapping (ISO Alpha-3 -> region_id)
 csv_df = pd.read_csv(csv_mapping_file)
 
 # Ensure column names match (GeoJSON uses `ADM0_A3` for country codes)
@@ -146,8 +146,6 @@ merged_gdf.to_file(output_file, driver="GeoJSON")
 
 print(f"Merged and dissolved GeoJSON saved as '{output_file}' with `region_id` as the only property.")
 
-# Constants
-EARTH_RADIUS = 6378137  # WGS84 radius in meters
 
 def mercator_projection(lat, lon):
     """
@@ -166,7 +164,17 @@ def mercator_projection(lat, lon):
     y = EARTH_RADIUS * math.log(math.tan(math.pi / 4 + lat_rad / 2))
 
     return x, y
-    
+
+
+# Constants
+EARTH_RADIUS = 6378137  # WGS84 radius in meters
+
+# Define valid feature codes for populated places
+valid_feature_codes = {"PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLL", "PPLC", "PPLS", "PPL"}
+
+# Define excluded country codes
+excluded_countries = {"FM", "PW", "MH", "PF", "AS", "CK", "KI", "TO"}  # Example: Micronesia, Palau, Marshall Islands
+
 cities_out = []
 with open("/Users/daryl/OSM//allCountries.txt") as f:
     reader = csv.reader(f, delimiter="\t")
@@ -195,16 +203,15 @@ with open("/Users/daryl/OSM//allCountries.txt") as f:
             dem = row[16]
             timezone = row[17]
             mod_date = row[18]
-            if feature_class == 'P' and (
-                    feature_code == 'PPLA' or feature_code == 'PPLA2' or feature_code == 'PPLA3' or feature_code == 'PPLA4' or feature_code == 'PPLA5' or feature_code == 'PPLC' or feature_code == 'PPLS' or feature_code == 'PPL'):
-                if int(population) > 100000:
-                    x, y = mercator_projection(float(latitude), float(longitude))
-                    print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
-                    cities_out.append([name, float(x), float(y), int(population)])#, countries[country_code]])
-                    pop = pop + int(population)
-                    #        else:
-                    #            print(name, feature_class, feature_code, population)
+            if feature_class == "P" and feature_code in valid_feature_codes and country_code not in excluded_countries and int(population) > 250000:
+                x, y = mercator_projection(float(latitude), float(longitude))
+                # print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
+                cities_out.append([name, float(x) * 0.92 / 1000.0, float(y) / 1000.0, int(population)])  # , countries[country_code]])
+                pop = pop + int(population)
+                #        else:
+                #            print(name, feature_class, feature_code, population)
 
+print("There are " + str(len(cities_out)))
 cbor_data = cbor2.dumps(cities_out)
 with open("Cities.cbor", 'wb') as o:
     o.write(cbor_data)

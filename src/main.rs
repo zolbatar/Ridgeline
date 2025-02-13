@@ -5,6 +5,7 @@ use crate::gfx::skia::Skia;
 use crate::input::{handle_mouse_button_down, handle_mouse_button_up, handle_mouse_motion, handle_mouse_wheel};
 use sdl2::event::Event;
 use std::process::exit;
+use crate::geo::cities::draw_all_cities;
 
 mod app_state;
 mod geo;
@@ -16,14 +17,15 @@ fn main() {
     let mut skia = Skia::new(&sdl);
 
     create_geo();
-    let paths = load().expect("Failed to load geojson");
+    let geo_and_cities = load().expect("Failed to load geojson");
 
     loop {
         // Start of frame
         sdl.frame_start();
         skia.set_matrix(&sdl);
         skia.set_zoom_target(&sdl);
-        draw_all_paths(&mut skia, &paths);
+        draw_all_paths(&mut skia, &geo_and_cities.geo_with_path);
+        draw_all_cities(&mut  skia, &geo_and_cities.cities);
 
         // Events
         for event in sdl.event_loop.poll_iter() {

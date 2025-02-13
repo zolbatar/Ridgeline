@@ -4,17 +4,22 @@ use skia_safe::{Color, Path};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub  struct Location {
-    name: String,
-    x: f64,
-    y: f64,
-    population: i32,
+pub struct Location {
+    pub name: String,
+    pub x: f64,
+    pub y: f64,
+    pub population: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Geo {
     pub geo: Vec<Polygon>,
     pub region: GeoRegion,
+}
+
+pub struct GeoWithPathAndCities {
+    pub geo_with_path: HashMap<u16, GeoWithPath>,
+    pub cities: Vec<Location>,
 }
 
 pub struct GeoWithPath {

@@ -1,12 +1,12 @@
-use crate::geo::data::{Geo, GeoRegion, GeoWithPath, Location};
+use crate::geo::data::{Geo, GeoRegion, GeoWithPathAndCities, Location};
 use crate::geo::paths::convert_paths;
-use geo::Geometry;
+use geo::{Area, Geometry};
 use geojson::GeoJson;
+use serde_cbor::from_reader;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
-use serde_cbor::from_reader;
 
 pub fn create_geo() {
     let geo = load_geojson();
@@ -20,7 +20,6 @@ fn load_geojson() -> HashMap<u16, Geo> {
 
     // Parse the files as GeoJSON
     let geojson: GeoJson = serde_json::from_reader(reader).expect("Unable to read geojson");
-    let cities = load_cbor_file("Cities.cbor");
 
     // Extract features (country boundaries)
     let mut m = HashMap::new();
@@ -35,32 +34,28 @@ fn load_geojson() -> HashMap<u16, Geo> {
 
                 // We don't want the islands
                 let region = GeoRegion::from_id(region_code).unwrap();
-                match region {
-                    GeoRegion::Melanesia => {}
-                    GeoRegion::Polynesia => {}
-                    GeoRegion::Micronesia => {}
-                    _ => {
-                        let extracted = match geo_geometry {
-                            Geometry::Polygon(polygon) => vec![polygon],              // Single polygon
-                            Geometry::MultiPolygon(multi_polygon) => multi_polygon.0, // Multiple polygons
-                            _ => panic!("Unsupported geo type"),
-                        };
+                let extracted = match geo_geometry {
+                    Geometry::Polygon(polygon) => vec![polygon],              // Single polygon
+                    Geometry::MultiPolygon(multi_polygon) => multi_polygon.0, // Multiple polygons
+                    _ => panic!("Unsupported geo type"),
+                };
 
-                        // Go through each polygon and decide if we want it
-                        let mut v = Vec::new();
-                        for poly in extracted.into_iter() {
-                            v.push(poly);
-                            count += 1;
-                        }
-                        m.insert(
-                            region_code,
-                            Geo {
-                                geo: v,
-                                region,
-                            },
-                        );
+                // Go through each polygon and decide if we want it
+                let mut v = Vec::new();
+                for poly in extracted.into_iter() {
+                    let area = -poly.signed_area() / 10000000.0;
+                    if area > 10.0 {
+                        v.push(poly);
+                        count += 1;
                     }
                 }
+                m.insert(
+                    region_code,
+                    Geo {
+                        geo: v,
+                        region,
+                    },
+                );
             }
         }
     }
@@ -76,16 +71,18 @@ fn serialize(m: HashMap<u16, Geo>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn load() -> Result<HashMap<u16, GeoWithPath>, Box<dyn Error>> {
+pub fn load() -> Result<GeoWithPathAndCities, Box<dyn Error>> {
     let file = File::open("Geo.cbor")?;
     let reader = BufReader::new(file);
     let data: HashMap<u16, Geo> = serde_cbor::from_reader(reader)?;
+    let cities = load_cbor_file("Cities.cbor");
 
     // Convert to Skia
-    let paths = convert_paths(data);
-    Ok(paths)
+    Ok(GeoWithPathAndCities {
+        geo_with_path: convert_paths(data),
+        cities,
+    })
 }
-
 
 fn load_cbor_file(file_path: &str) -> Vec<Location> {
     // Open the CBOR file

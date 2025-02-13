@@ -20,6 +20,7 @@ pub struct Skia {
     context: DirectContext,
     pub surface: Surface,
     pub font_main: Font,
+    pub font_label: Font,
     pub zoom: f32,
     pub zoom_min: f32,
     pub zoom_max: f32,
@@ -31,6 +32,7 @@ pub struct Skia {
 }
 
 pub const FONT_SIZE: f32 = 14.0;
+pub const LABEL_SIZE: f32 = 10.0;
 
 impl Skia {
     fn make_surface(context: &mut DirectContext, width: i32, height: i32) -> Surface {
@@ -81,6 +83,7 @@ impl Skia {
             context,
             surface,
             font_main: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), FONT_SIZE),
+            font_label: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), LABEL_SIZE),
             zoom: 0.03,
             zoom_min: MIN_ZOOM,
             zoom_max: MAX_ZOOM,
