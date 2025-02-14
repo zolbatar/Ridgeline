@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use std::rc::Rc;
 
 pub fn create_geo() {
     let geo = load_geojson();
@@ -84,7 +85,7 @@ pub fn load(wanted_regions: &HashSet<u16>, radius: f64) -> Result<GeoWithPathAnd
     })
 }
 
-fn load_cbor_file(file_path: &str, radius: f64, wanted_regions: &HashSet<u16>) -> Vec<Location> {
+fn load_cbor_file(file_path: &str, radius: f64, wanted_regions: &HashSet<u16>) -> Vec<Rc<Location>> {
     // Open the CBOR file
     let file = File::open(file_path).expect("Unable to open GEO file");
     let reader = BufReader::new(file);
@@ -96,7 +97,7 @@ fn load_cbor_file(file_path: &str, radius: f64, wanted_regions: &HashSet<u16>) -
     locations.retain(|x| wanted_regions.contains(&(x.region_id as u16)));
 
     // Now only select those that aren't too close to a neighbour, starting at largest down
-    let mut locations_out: Vec<Location> = Vec::new();
+    let mut locations_out: Vec<Rc<Location>> = Vec::new();
     for location in locations.into_iter() {
         let mut minimum_distance = f64::INFINITY;
         for location_out in &locations_out {
@@ -109,7 +110,7 @@ fn load_cbor_file(file_path: &str, radius: f64, wanted_regions: &HashSet<u16>) -
             }
         }
         if minimum_distance >= radius {
-            locations_out.push(location);
+            locations_out.push(Rc::new(location));
         }
     }
 

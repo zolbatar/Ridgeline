@@ -2,6 +2,7 @@ use geo::Polygon;
 use serde::{Deserialize, Serialize};
 use skia_safe::{Color, Path};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Location {
@@ -20,7 +21,7 @@ pub struct Geo {
 
 pub struct GeoWithPathAndCities {
     pub geo_with_path: HashMap<u16, GeoWithPath>,
-    pub cities: Vec<Location>,
+    pub cities: Vec<Rc<Location>>,
 }
 
 pub struct GeoWithPath {
