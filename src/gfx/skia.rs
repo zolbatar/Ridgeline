@@ -11,6 +11,7 @@ use skia_safe::{
 };
 
 static MAIN_FONT: &[u8] = include_bytes!("assets/NotoSans-Regular.ttf");
+static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/NotoSans-Bold.ttf");
 const NOISE_SKSL: &str = include_str!("assets/noise.sksl");
 const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;
@@ -24,6 +25,7 @@ pub struct Skia {
     pub surface: Surface,
     pub font_main: Font,
     pub font_label: Font,
+    pub font_label_bold: Font,
     pub zoom: f32,
     pub zoom_min: f32,
     pub zoom_max: f32,
@@ -84,10 +86,11 @@ impl Skia {
             surface,
             font_main: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), FONT_SIZE),
             font_label: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), LABEL_SIZE),
+            font_label_bold: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT_BOLD, None).unwrap(), LABEL_SIZE),
             zoom: 0.03,
             zoom_min: MIN_ZOOM,
             zoom_max: MAX_ZOOM,
-            target: Point::new(0.0, -5000.0),
+            target: Point::default(),
             panning: false,
             noise_shader,
             drop_shadow,

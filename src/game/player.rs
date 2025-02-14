@@ -1,5 +1,6 @@
 use crate::game::city::City;
 use crate::geo::data::GeoWithPathAndCities;
+use std::rc::Rc;
 
 pub enum PlayerType {
     Player,
@@ -8,7 +9,7 @@ pub enum PlayerType {
 
 pub struct Player {
     pub player_type: PlayerType,
-    pub cities: Vec<City>,
+    pub cities: Vec<Rc<City>>,
 }
 
 impl Player {
@@ -21,13 +22,13 @@ impl Player {
 
     pub fn assign_all(&mut self, geo_and_cities: &GeoWithPathAndCities) {
         for city in geo_and_cities.cities.iter() {
-            self.cities.push(City {
+            self.cities.push(Rc::new(City {
                 location: city.clone(),
-            });
+            }));
         }
     }
 
-    pub fn change_ownership(&mut self, city: City) {
+    pub fn change_ownership(&mut self, city: Rc<City>) {
         self.cities.push(city);
     }
 }

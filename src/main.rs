@@ -1,3 +1,4 @@
+use crate::app_state::AppState;
 use crate::game::player::{Player, PlayerType};
 use crate::geo::cities::draw_all_cities;
 use crate::geo::load::{create_geo, load};
@@ -26,11 +27,18 @@ fn main() {
     //let wanted_regions: HashSet<u16> = HashSet::from([53,143,30,151,419,15,21,154,35,34,39,202,145,155]);
     let geo_and_cities = load(&wanted_regions, 500.0).expect("Failed to load geojson");
 
+    // App state
+    let mut app_state = AppState {
+        players: vec![Player::new(PlayerType::NotAssigned), Player::new(PlayerType::Player)],
+        selected_city: None,
+    };
+
     // Create player(s)
-    let mut players = vec![Player::new(PlayerType::NotAssigned), Player::new(PlayerType::Player)];
-    players[0].assign_all(&geo_and_cities);
-    let city = players[0].cities.remove(0);
-    players[1].change_ownership(city);
+    app_state.players[0].assign_all(&geo_and_cities);
+    let city = app_state.players[0].cities.remove(0);
+    app_state.selected_city = Some(city.clone());
+    app_state.players[1].change_ownership(city);
+    app_state.zoom_to_selected(&mut skia);
 
     loop {
         // Start of frame
@@ -38,7 +46,7 @@ fn main() {
         skia.set_matrix(&sdl);
         skia.set_zoom_target(&sdl);
         draw_all_paths(&mut skia, &geo_and_cities.geo_with_path);
-        draw_all_cities(&mut skia, &players);
+        draw_all_cities(&mut skia, &app_state);
 
         // Events
         for event in sdl.event_loop.poll_iter() {
@@ -46,6 +54,16 @@ fn main() {
                 Event::Quit {
                     ..
                 } => exit(0),
+
+                Event::TextInput {
+                    timestamp: _timestamp,
+                    window_id: _window_id,
+                    text,
+                } => match text.to_uppercase().as_str() {
+                    "Z" => app_state.zoom_to_selected(&mut skia),
+                    "X" => app_state.zoom_out(&mut skia),
+                    _ => {}
+                },
 
                 Event::MouseWheel {
                     direction,

@@ -4,7 +4,7 @@ use skia_safe::{Color, Path};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Location {
     pub region_id: i64,
     pub name: String,
