@@ -140,8 +140,8 @@ impl Skia {
         self.get_canvas().clear(Color::TRANSPARENT);
         let mut paint_background = Paint::default();
         let bg = Color::from_rgb(0x08, 0x1A, 0x30); // Deep Trench Blue
-                                                    //        let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
-                                                    //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
+        let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
+        //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
         paint_background.set_style(PaintStyle::Fill);
         paint_background.set_shader(self.create_noise_shader(bg, NOISE_MIX));
         self.get_canvas().draw_rect(Rect::from_xywh(0.0, 0.0, w as f32, h as f32), &paint_background);
