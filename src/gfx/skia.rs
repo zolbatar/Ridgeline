@@ -15,10 +15,10 @@ static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/NotoSans-Bold.ttf");
 const NOISE_SKSL: &str = include_str!("assets/noise.sksl");
 const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;
-pub const LABEL_SIZE: f32 = 60.0;
+pub const LABEL_SIZE: f32 = 6.0;
 
-pub const MIN_ZOOM: f32 = 0.03;
-pub const MAX_ZOOM: f32 = 1.0;
+pub const MIN_ZOOM: f32 = 0.35;
+pub const MAX_ZOOM: f32 = 4.0;
 
 pub struct Skia {
     context: DirectContext,
@@ -87,10 +87,10 @@ impl Skia {
             font_main: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), FONT_SIZE),
             font_label: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT, None).unwrap(), LABEL_SIZE),
             font_label_bold: Font::from_typeface(font_mgr.new_from_data(MAIN_FONT_BOLD, None).unwrap(), LABEL_SIZE),
-            zoom: 0.03,
+            zoom: MIN_ZOOM,
             zoom_min: MIN_ZOOM,
             zoom_max: MAX_ZOOM,
-            target: Point::default(),
+            target: Point::new(-260.0, -7500.0),
             panning: false,
             noise_shader,
             drop_shadow,
@@ -140,8 +140,8 @@ impl Skia {
         self.get_canvas().clear(Color::TRANSPARENT);
         let mut paint_background = Paint::default();
         let bg = Color::from_rgb(0x08, 0x1A, 0x30); // Deep Trench Blue
-        let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
-        //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
+                                                    //let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
+                                                    //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
         paint_background.set_style(PaintStyle::Fill);
         paint_background.set_shader(self.create_noise_shader(bg, NOISE_MIX));
         self.get_canvas().draw_rect(Rect::from_xywh(0.0, 0.0, w as f32, h as f32), &paint_background);

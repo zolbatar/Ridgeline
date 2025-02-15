@@ -1,18 +1,18 @@
-use std::rc::Rc;
 use crate::app_state::AppState;
 use crate::game::player::PlayerType;
-use crate::gfx::skia::{clip_circle, Skia};
+use crate::gfx::skia::{clip_circle, Skia, LABEL_SIZE};
 use skia_safe::paint::Style;
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{scalar, Color, Paint, Point, Rect};
+use std::rc::Rc;
 
 pub fn draw_all_cities(skia: &mut Skia, app_state: &AppState) {
     let font = &skia.font_label.clone();
     let font_bold = &skia.font_label_bold.clone();
-    let radius = 40.0;
+    let radius = LABEL_SIZE * 0.65;
     let dot_radius = radius / 10.0;
-    let border_width = 3.0;
-    let spacing = 7.0;
+    let spacing = LABEL_SIZE * 0.1;
+    let border_width = spacing / 2.0;
     let corner_radius = radius + spacing;
     let bar_width = 128.0;
 
@@ -73,19 +73,20 @@ pub fn draw_all_cities(skia: &mut Skia, app_state: &AppState) {
                 Rect::from_xywh(
                     l.x as scalar - radius - spacing - bar_width,
                     -l.y as scalar - radius - spacing,
-                    w + radius * 2.0 + spacing * 4.0 + 16.0 + bar_width,
+                    w + radius * 2.0 + spacing * 4.0 + (spacing / 2.0) + bar_width,
                     radius * 2.0 + spacing * 2.0,
                 )
             } else {
                 Rect::from_xywh(
                     l.x as scalar - radius - spacing,
                     -l.y as scalar - radius - spacing,
-                    w + radius * 2.0 + spacing * 4.0 + 16.0,
+                    w + radius * 2.0 + LABEL_SIZE,
                     radius * 2.0 + spacing * 2.0,
                 )
             };
             let p1 = Point::new(l.x as scalar, -l.y as scalar);
-            let p2 = Point::new(l.x as scalar + radius + 8.0, -l.y as scalar + radius - descent /* - h / 2.0*/);
+            let p2 = Point::new(l.x as scalar + radius + (spacing * 2.0), -l.y as scalar + radius - 
+                descent);
 
             // Apply the clip circle
             canvas.save();

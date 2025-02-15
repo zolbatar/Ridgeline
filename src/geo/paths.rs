@@ -1,13 +1,13 @@
-use crate::geo::data::{Geo, GeoWithPath};
+use crate::geo::data::{Geo, GeoWithPath, COLOR_PALETTE};
 use crate::gfx::skia::Skia;
 use geo::LineString;
 use skia_safe::paint::Style;
 use skia_safe::{scalar, Color, Paint, Path, Point, Vector};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-pub fn convert_paths(geo: HashMap<u16, Geo>, regions: &HashSet<u16>) -> HashMap<u16, GeoWithPath> {
-    let mut paths = HashMap::new();
-    for (admin, y) in geo.into_iter() {
+pub fn convert_paths(geo: Vec<Geo>) -> Vec<GeoWithPath> {
+    let mut paths = Vec::new();
+    for y in geo.into_iter() {
         // Create skia path
         let mut polys = Vec::new();
         y.geo.iter().for_each(|v| {
@@ -15,12 +15,9 @@ pub fn convert_paths(geo: HashMap<u16, Geo>, regions: &HashSet<u16>) -> HashMap<
             polys.push(path);
         });
 
-        paths.insert(
-            admin,
+        paths.push(
             GeoWithPath {
-                enabled: regions.contains(&admin),
                 polys,
-                region: y.region,
             },
         );
     }
@@ -42,13 +39,13 @@ fn build_path(poly: &LineString) -> Path {
     path
 }
 
-pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<u16, GeoWithPath>) {
+pub fn draw_all_paths(skia: &mut Skia, polys: &Vec<GeoWithPath>) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_style(Style::Stroke);
     let bg = Color::BLACK;
     paint.set_color(bg);
-    paint.set_stroke_width(3.0);
+    paint.set_stroke_width(0.5);
 
     let mut paint_shadow = Paint::default();
     paint_shadow.set_anti_alias(true);
@@ -62,25 +59,19 @@ pub fn draw_all_paths(skia: &mut Skia, polys: &HashMap<u16, GeoWithPath>) {
 
     // Draw "shadow"
     skia.get_canvas().save();
-    let zz = 5.0;
+    let zz = 1.0;
     skia.get_canvas().translate(Vector::new(zz, zz));
-    for geo in polys.values() {
-        if geo.enabled {
-            for path in geo.polys.iter() {
-                skia.get_canvas().draw_path(path, &paint_shadow);
-            }
+    for geo in polys {
+        for path in geo.polys.iter() {
+            skia.get_canvas().draw_path(path, &paint_shadow);
         }
     }
     skia.get_canvas().restore();
 
     // And actual polys
-    for geo in polys.values() {
-        let colour = geo.region.colour();
-        if geo.enabled {
-            paint_fill.set_color(colour);
-        } else {
-            paint_fill.set_color(Color::from_argb(96, 80, 80, 80));
-        }
+    for geo in polys {
+        let colour = COLOR_PALETTE[0];
+        paint_fill.set_color(colour);
         for path in geo.polys.iter() {
             skia.get_canvas().draw_path(path, &paint_fill);
             skia.get_canvas().draw_path(path, &paint);

@@ -1,46 +1,13 @@
 import csv
 import math
+
 import cbor2
 import geopandas as gpd
-import pandas as pd
-from shapely.affinity import scale
-from shapely.geometry.geo import mapping, shape, box
+from shapely.geometry.geo import mapping, shape
 from shapely.lib import unary_union
 
 geojson_file = "/Users/daryl/OSM/AllCountries.geojson"
 gdf = gpd.read_file(geojson_file)
-
-# Extract ISO_A2 and SUBREGION as a dictionary
-country_subregion_dict = dict(zip(gdf["ISO_A2"], gdf["SUBREGION"]))
-
-# Define regions to exclude (example: Micronesia)
-excluded_regions = ["Micronesia", "Polynesia", "Melanesia"]
-
-# Filter out the excluded regions
-filtered_gdf = gdf[~gdf["SUBREGION"].isin(excluded_regions)]
-
-
-# Define function to shift longitudes properly
-def fix_russia_longitudes(geometry):
-    """ Adds 360° to negative longitude values for Russia """
-    if geometry.is_empty:
-        return geometry
-
-    geojson_geom = mapping(geometry)  # Convert to GeoJSON format
-    coords_key = "coordinates" if "coordinates" in geojson_geom else None
-
-    if coords_key:
-        def adjust_coords(coords):
-            return [(lon + 360 if lon < 0 else lon, lat) for lon, lat in coords]
-
-        def process_geometry(geom):
-            if isinstance(geom[0], (list, tuple)):  # MultiPolygon or Polygon
-                return [process_geometry(part) for part in geom] if isinstance(geom[0][0], (list, tuple)) else adjust_coords(geom)
-            return geom
-
-        geojson_geom["coordinates"] = process_geometry(geojson_geom["coordinates"])
-
-    return shape(geojson_geom)  # Convert back to Shapely geometry
 
 
 def round_remove_digits(num, digits):
@@ -79,70 +46,59 @@ def fix_geometries(geometry, min_area=1e-6):
     return None  # Remove any remaining invalid geometry
 
 
-# Fix Russia's longitudes first
-gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"] = gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"].apply(fix_russia_longitudes)
+# Filter for only the United Kingdom proper
+gdf = gdf[gdf["ISO_A3"] == "GBR"]
 
-# Merge all Russia's polygons into one contiguous shape
-russia_gdf = gdf[gdf["ADM0_A3"] == "RUS"]
-merged_russia = unary_union(russia_gdf.geometry)
+# Define the bounding box for the mainland UK
+uk_bbox = {
+    "minx": -13.2275390621,  # West extent
+    "maxx": 8.3056640621,  # East extent
+    "miny": 47.6357835912,  # South extent
+    "maxy": 60.8449105734  # North extent
+}
 
-# Update Russia in the GeoDataFrame
-gdf.loc[gdf["ADM0_A3"] == "RUS", "geometry"] = merged_russia
 
-# Define latitude crop range (adjust as needed)
-min_lat = -80  # 5th percentile latitude (adjust if necessary)
-max_lat = 60  # 95th percentile latitude
-min_lon = -200  # 5th percentile latitude (adjust if necessary)
-max_lon = 200  # 95th percentile latitude
+# Function to check if a geometry is within the UK bounding box
+def within_uk_bbox(geometry):
+    bounds = geometry.bounds  # Get (minx, miny, maxx, maxy)
+    return (
+            bounds[0] >= uk_bbox["minx"] and bounds[2] <= uk_bbox["maxx"] and
+            bounds[1] >= uk_bbox["miny"] and bounds[3] <= uk_bbox["maxy"]
+    )
 
-# Create a bounding box (min_x, min_y, max_x, max_y)
-# bbox = box(min_lon, min_lat, max_lon, max_lat)
 
-# Clip the GeoDataFrame
-# gdf = gpd.clip(gdf, bbox)  # gdf[gdf.intersects(bbox)]
+# Ensure the GeoDataFrame is in OSGB (EPSG:27700)
+# print("Converting to EPSG:27700")
+# gdf = gdf.to_crs("EPSG:27700")
 
-gdf["geometry"] = gdf["geometry"].apply(lambda geom: scale(geom, xfact=0.92, yfact=1.0, origin=(0, 0)))
+# Apply the bounding box filter
+# gdf = gdf[gdf["geometry"].apply(within_uk_bbox)]
+
+# Check if any geometries remain
+if gdf.empty:
+    print("Warning: No geometries remain after filtering. Check CRS and bounding box.")
 
 # Convert to Web Mercator projection
 gdf = gdf.to_crs("EPSG:3857")
 # gdf = gdf.to_crs("EPSG:6933")  # Equal-area
 
 # Apply rounding to all geometries
-gdf["geometry"] = gdf["geometry"].apply(lambda geom: round_coordinates(geom, precision=1))  # Reduce decimal places
+# gdf["geometry"] = gdf["geometry"].apply(lambda geom: round_coordinates(geom, precision=4))  # Reduce decimal places
 
 # Apply geometry fixes (removes spurs)
-gdf["geometry"] = gdf["geometry"].apply(fix_geometries)
+# gdf["geometry"] = gdf["geometry"].apply(fix_geometries)
 
 # Simplify each country's polygon while keeping properties
-tolerance = 1.0  # Adjust for more or less simplification
-gdf["geometry"] = gdf["geometry"].simplify(tolerance, preserve_topology=True)
+# tolerance = 1.0  # Adjust for more or less simplification
+# gdf["geometry"] = gdf["geometry"].simplify(tolerance, preserve_topology=True)
 
-csv_mapping_file = "all.csv"
 output_file = "merged_by_region.geojson"
 
-# Load the CSV mapping (ADM3 -> region_id)
-csv_df = pd.read_csv(csv_mapping_file)
-
-# Ensure column names match (GeoJSON uses `ADM0_A3` for country codes)
-csv_df.rename(columns={"alpha-3": "ADM0_A3", "sub-region-code": "region_id"}, inplace=True)
-
-# Merge `region_id` into the GeoDataFrame based on `alpha-3` country codes
-gdf = gdf.merge(csv_df[["ADM0_A3", "region_id"]], on="ADM0_A3", how="left")
-
-# Drop rows where region_id is missing
-gdf = gdf[gdf["region_id"].notnull()]
-
-# Group by `region_id` and fully dissolve all geometries
-merged_gdf = gdf.dissolve(by="region_id", aggfunc="first")
-
 # Apply `unary_union` to truly merge touching geometries (removes internal borders)
-merged_gdf["geometry"] = merged_gdf["geometry"].apply(lambda x: unary_union(x) if x else None)
-
-# Remove unnecessary columns, keep only `region_id`
-merged_gdf = merged_gdf.reset_index()[["region_id", "geometry"]]
+gdf["geometry"] = gdf["geometry"].apply(lambda x: unary_union(x) if x else None)
 
 # Save as a new GeoJSON file
-merged_gdf.to_file(output_file, driver="GeoJSON")
+gdf.to_file(output_file, driver="GeoJSON")
 
 print(f"Merged and dissolved GeoJSON saved as '{output_file}' with `region_id` as the only property.")
 
@@ -172,14 +128,8 @@ EARTH_RADIUS = 6378137  # WGS84 radius in meters
 # Define valid feature codes for populated places
 valid_feature_codes = {"PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLL", "PPLC", "PPLS", "PPL"}
 
-# Define excluded country codes
-excluded_countries = {"FM", "PW", "MH", "PF", "AS", "CK", "KI", "TO"}  # Example: Micronesia, Palau, Marshall Islands
-
-# Convert country mapping to a dictionary for fast lookup
-country_to_region = csv_df.set_index("alpha-2")["region_id"].to_dict()
-
 cities_out = []
-with open("/Users/daryl/OSM//allCountries.txt") as f:
+with open("/Users/daryl/OSM/allCountries.txt") as f:
     reader = csv.reader(f, delimiter="\t")
     pop = 0
     for row in reader:
@@ -207,19 +157,19 @@ with open("/Users/daryl/OSM//allCountries.txt") as f:
             timezone = row[17]
             mod_date = row[18]
 
-            # Get region_id using country_code lookup, default to None if not found
-            region_id = country_to_region.get(country_code, None)
-            
-            if region_id is not None and feature_class == "P" and feature_code in valid_feature_codes and country_code not in excluded_countries and int(population) > 25000:
-                x, y = mercator_projection(float(latitude), float(longitude))
-                # print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
-                cities_out.append([int(region_id), name, float(x) * 0.92 / 1000.0, float(y) / 1000.0, int(population)])  # , countries[country_code]])
-                pop = pop + int(population)
+            if feature_class == "P" and feature_code in valid_feature_codes and country_code == "GB":
+                latitude = float(latitude)
+                longitude = float(longitude)
+                if uk_bbox["minx"] <= longitude <= uk_bbox["maxx"] and uk_bbox["miny"] <= latitude <= uk_bbox["maxy"]:
+                    x, y = mercator_projection(latitude, longitude)
+                    # print("Match: ", name, x, y, latitude, longitude, population)#, countries[country_code])
+                    cities_out.append([name, float(x) / 1000.0, float(y) / 1000.0, int(population)])  # , 
+                    pop = pop + int(population)
                 #        else:
                 #            print(name, feature_class, feature_code, population)
 
 # Sort by size descending
-cities_out.sort(key=lambda x: x[4], reverse=True)
+cities_out.sort(key=lambda x: x[3], reverse=True)
 
 print("There are " + str(len(cities_out)))
 cbor_data = cbor2.dumps(cities_out)

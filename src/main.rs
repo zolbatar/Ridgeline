@@ -7,7 +7,6 @@ use crate::gfx::sdl::Sdl;
 use crate::gfx::skia::Skia;
 use crate::input::{handle_mouse_button_down, handle_mouse_button_up, handle_mouse_motion, handle_mouse_wheel};
 use sdl2::event::Event;
-use std::collections::HashSet;
 use std::process::exit;
 
 mod app_state;
@@ -22,10 +21,7 @@ fn main() {
 
     // Create and load geo data
     create_geo();
-    let wanted_regions: HashSet<u16> = HashSet::from([154, 39, 155]);
-    //let wanted_regions: HashSet<u16> = HashSet::from([154, 39, 155, 151, 15, 145]);
-    //let wanted_regions: HashSet<u16> = HashSet::from([53,143,30,151,419,15,21,154,35,34,39,202,145,155]);
-    let geo_and_cities = load(&wanted_regions, 500.0).expect("Failed to load geojson");
+    let geo_and_cities = load(50.0).expect("Failed to load geojson");
 
     // App state
     let mut app_state = AppState {
@@ -38,7 +34,7 @@ fn main() {
     let city = app_state.players[0].cities.remove(0);
     app_state.selected_city = Some(city.clone());
     app_state.players[1].change_ownership(city);
-    app_state.zoom_to_selected(&mut skia);
+//    app_state.zoom_to_selected(&mut skia);
 
     loop {
         // Start of frame

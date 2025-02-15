@@ -1,12 +1,10 @@
 use geo::Polygon;
 use serde::{Deserialize, Serialize};
 use skia_safe::{Color, Path};
-use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Location {
-    pub region_id: i64,
     pub name: String,
     pub x: f64,
     pub y: f64,
@@ -16,78 +14,18 @@ pub struct Location {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Geo {
     pub geo: Vec<Polygon>,
-    pub region: GeoRegion,
 }
 
 pub struct GeoWithPathAndCities {
-    pub geo_with_path: HashMap<u16, GeoWithPath>,
+    pub geo_with_path: Vec<GeoWithPath>,
     pub cities: Vec<Rc<Location>>,
 }
 
 pub struct GeoWithPath {
-    pub enabled: bool,
     pub polys: Vec<Path>,
-    pub region: GeoRegion,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum GeoRegion {
-    AustraliaAndNewZealand,
-    CentralAsia,
-    EasternAsia,
-    EasternEurope,
-    LatinAmericaAndCaribbean,
-    Melanesia,
-    Micronesia,
-    NorthernAfrica,
-    NorthernAmerica,
-    NorthernEurope,
-    Polynesia,
-    SouthEasternAsia,
-    SouthernAsia,
-    SouthernEurope,
-    SubSaharanAfrica,
-    WesternAsia,
-    WesternEurope,
-}
-
-impl GeoRegion {
-    pub fn from_id(id: u16) -> Option<GeoRegion> {
-        let lookup: HashMap<u16, GeoRegion> = [
-            (53, GeoRegion::AustraliaAndNewZealand),
-            (143, GeoRegion::CentralAsia),
-            (30, GeoRegion::EasternAsia),
-            (151, GeoRegion::EasternEurope),
-            (419, GeoRegion::LatinAmericaAndCaribbean),
-            (54, GeoRegion::Melanesia),
-            (57, GeoRegion::Micronesia),
-            (15, GeoRegion::NorthernAfrica),
-            (21, GeoRegion::NorthernAmerica),
-            (154, GeoRegion::NorthernEurope),
-            (61, GeoRegion::Polynesia),
-            (35, GeoRegion::SouthEasternAsia),
-            (34, GeoRegion::SouthernAsia),
-            (39, GeoRegion::SouthernEurope),
-            (202, GeoRegion::SubSaharanAfrica),
-            (145, GeoRegion::WesternAsia),
-            (155, GeoRegion::WesternEurope),
-        ]
-        .iter()
-        .cloned()
-        .collect();
-
-        lookup.get(&id).copied()
-    }
-}
-
-impl GeoRegion {
-    pub fn colour(&self) -> Color {
-        let index = *self as usize;
-        COLOR_PALETTE[index]
-    }
-}
-
-const COLOR_PALETTE: [Color; 17] = [
+pub const COLOR_PALETTE: [Color; 17] = [
     Color::from_rgb(0xA0, 0x64, 0x14), // Brighter Rust
     Color::from_rgb(0x5C, 0x9C, 0xD0), // Brighter Strong Steel Blue
     Color::from_rgb(0x98, 0x5A, 0xB5), // Brighter Royal Purple
