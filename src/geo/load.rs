@@ -1,6 +1,6 @@
 use crate::geo::data::{Geo, GeoWithPathAndCities, Location};
 use crate::geo::paths::convert_paths;
-use geo::{Area, Geometry};
+use geo::Geometry;
 use geojson::GeoJson;
 use serde_cbor::from_reader;
 use std::error::Error;
@@ -11,6 +11,19 @@ use std::rc::Rc;
 pub fn create_geo() {
     let geo = load_geojson();
     serialize(geo).expect("Unable to serialize GEO");
+    
+    // Load OS data
+    let file = File::open("/Users/daryl/")
+    let mut reader = shapefile::Reader::from_path(filename).unwrap();
+
+    for result in reader.iter_shapes_and_records() {
+        let (shape, record) = result.unwrap();
+        println ! ("Shape: {}, records: ", shape);
+        for (name, value) in record {
+            println ! ("\t{}: {:?}, ", name, value);
+        }
+        println ! ();
+    }
 }
 
 fn load_geojson() -> Vec<Geo> {
@@ -26,7 +39,6 @@ fn load_geojson() -> Vec<Geo> {
     let mut count = 0usize;
     if let GeoJson::FeatureCollection(fc) = geojson {
         for feature in fc.features {
-            let fp = feature.properties.unwrap();
             if let Some(geometry) = feature.geometry {
                 let geo_geometry: geo::Geometry<f64> = geometry.try_into().unwrap();
 
@@ -40,7 +52,6 @@ fn load_geojson() -> Vec<Geo> {
                 // Go through each polygon and decide if we want it
                 let mut v = Vec::new();
                 for poly in extracted.into_iter() {
-                    let area = -poly.signed_area() / 10000000.0;
                     v.push(poly);
                     count += 1;
                 }
@@ -81,7 +92,7 @@ fn load_cbor_file(file_path: &str, radius: f64) -> Vec<Rc<Location>> {
     let reader = BufReader::new(file);
 
     // Deserialize the CBOR data into a Vec<Location>
-    let mut locations: Vec<Location> = from_reader(reader).expect("Unable to read GEO file");
+    let locations: Vec<Location> = from_reader(reader).expect("Unable to read GEO file");
 
     // Now only select those that aren't too close to a neighbour, starting at largest down
     let mut locations_out: Vec<Rc<Location>> = Vec::new();

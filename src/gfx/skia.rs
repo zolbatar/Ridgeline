@@ -10,8 +10,8 @@ use skia_safe::{
     Surface, Vector,
 };
 
-static MAIN_FONT: &[u8] = include_bytes!("assets/NotoSans-Regular.ttf");
-static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/NotoSans-Bold.ttf");
+static MAIN_FONT: &[u8] = include_bytes!("assets/lato/Lato-Regular.ttf");
+static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/lato/Lato-Bold.ttf");
 const NOISE_SKSL: &str = include_str!("assets/noise.sksl");
 const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;

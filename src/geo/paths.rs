@@ -3,7 +3,6 @@ use crate::gfx::skia::Skia;
 use geo::LineString;
 use skia_safe::paint::Style;
 use skia_safe::{scalar, Color, Paint, Path, Point, Vector};
-use std::collections::HashMap;
 
 pub fn convert_paths(geo: Vec<Geo>) -> Vec<GeoWithPath> {
     let mut paths = Vec::new();
