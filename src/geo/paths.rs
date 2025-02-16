@@ -1,4 +1,4 @@
-use crate::geo::data::{Geo, GeoWithPath, COLOR_PALETTE};
+use crate::geo::data::{Geo, GeoWithPath, WaySkia, COLOR_PALETTE};
 use crate::gfx::skia::Skia;
 use geo::LineString;
 use skia_safe::paint::Style;
@@ -14,11 +14,9 @@ pub fn convert_paths(geo: Vec<Geo>) -> Vec<GeoWithPath> {
             polys.push(path);
         });
 
-        paths.push(
-            GeoWithPath {
-                polys,
-            },
-        );
+        paths.push(GeoWithPath {
+            polys,
+        });
     }
     paths
 }
@@ -38,7 +36,19 @@ fn build_path(poly: &LineString) -> Path {
     path
 }
 
-pub fn draw_all_paths(skia: &mut Skia, polys: &Vec<GeoWithPath>) {
+pub fn draw_ways(skia: &mut Skia, ways: &[WaySkia]) {
+    let mut paint = Paint::default();
+    paint.set_anti_alias(true);
+    paint.set_style(Style::Stroke);
+    paint.set_color(Color::LIGHT_GRAY);
+    paint.set_stroke_width(1.0);
+
+    ways.iter().for_each(|w| {
+        skia.get_canvas().draw_path(&w.path, &paint);
+    });
+}
+
+pub fn draw_country(skia: &mut Skia, polys: &Vec<GeoWithPath>) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_style(Style::Stroke);

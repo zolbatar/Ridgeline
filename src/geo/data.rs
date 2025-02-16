@@ -19,6 +19,7 @@ pub struct Geo {
 pub struct GeoWithPathAndCities {
     pub geo_with_path: Vec<GeoWithPath>,
     pub cities: Vec<Rc<Location>>,
+    pub ways: Vec<WaySkia>,
 }
 
 pub struct GeoWithPath {
@@ -44,3 +45,39 @@ pub const COLOR_PALETTE: [Color; 17] = [
     Color::from_rgb(0x63, 0x14, 0xA5), // Brighter Indigo
     Color::from_rgb(0xFF, 0xB5, 0x14), // Brighter Vivid Amber
 ];
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum WayClass {
+    ARoad,
+    BRoad,
+    Motorway,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum WayForm {
+    SingleCarriageway,
+    DualCarriageway,
+    CollapsedDualCarriageway,
+    Roundabout,
+    SlipRoad,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WayPoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Way {
+    pub class: WayClass,
+    pub form: WayForm,
+    pub way_points: Vec<WayPoint>,
+}
+
+#[derive(Debug)]
+pub struct WaySkia {
+    pub class: WayClass,
+    pub form: WayForm,
+    pub path: Path,
+}

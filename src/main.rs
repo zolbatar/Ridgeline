@@ -2,7 +2,7 @@ use crate::app_state::AppState;
 use crate::game::player::{Player, PlayerType};
 use crate::geo::cities::draw_all_cities;
 use crate::geo::load::{create_geo, load};
-use crate::geo::paths::draw_all_paths;
+use crate::geo::paths::{draw_country, draw_ways};
 use crate::gfx::sdl::Sdl;
 use crate::gfx::skia::Skia;
 use crate::input::{handle_mouse_button_down, handle_mouse_button_up, handle_mouse_motion, handle_mouse_wheel};
@@ -22,8 +22,8 @@ fn main() {
     let mut skia = Skia::new(&sdl);
 
     // Create and load geo data
-    create_geo();
-    let geo_and_cities = load(50.0).expect("Failed to load geojson");
+    //create_geo();
+    let geo_and_cities = load(25.0).expect("Failed to load geojson");
 
     // App state
     let mut app_state = AppState {
@@ -36,14 +36,15 @@ fn main() {
     let city = app_state.players[0].cities.remove(0);
     app_state.selected_city = Some(city.clone());
     app_state.players[1].change_ownership(city);
-//    app_state.zoom_to_selected(&mut skia);
+    //    app_state.zoom_to_selected(&mut skia);
 
     loop {
         // Start of frame
         sdl.frame_start();
         skia.set_matrix(&sdl);
         skia.set_zoom_target(&sdl);
-        draw_all_paths(&mut skia, &geo_and_cities.geo_with_path);
+        draw_country(&mut skia, &geo_and_cities.geo_with_path);
+        draw_ways(&mut skia, &geo_and_cities.ways);
         draw_all_cities(&mut skia, &app_state);
 
         // Events
