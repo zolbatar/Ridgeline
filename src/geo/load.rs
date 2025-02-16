@@ -14,7 +14,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::rc::Rc;
-use csv::QuoteStyle::Always;
 
 pub fn create_geo() {
     let geo = load_geojson();
@@ -233,18 +232,20 @@ fn load_cbor_file(file_path: &str, radius: f64) -> Vec<Rc<Location>> {
     // Now only select those that aren't too close to a neighbour, starting at largest down
     let mut locations_out: Vec<Rc<Location>> = Vec::new();
     for location in locations.into_iter() {
-        let mut minimum_distance = f64::INFINITY;
-        for location_out in &locations_out {
-            let dist = calculate_distance(&location, location_out);
-            if dist < minimum_distance {
-                minimum_distance = dist;
+        if location.population >= 10000 {
+            let mut minimum_distance = f64::INFINITY;
+            for location_out in &locations_out {
+                let dist = calculate_distance(&location, location_out);
+                if dist < minimum_distance {
+                    minimum_distance = dist;
+                }
+                if dist < radius {
+                    break;
+                }
             }
-            if dist < radius {
-                break;
+            if minimum_distance >= radius {
+                locations_out.push(Rc::new(location));
             }
-        }
-        if minimum_distance >= radius {
-            locations_out.push(Rc::new(location));
         }
     }
 

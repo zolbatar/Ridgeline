@@ -15,7 +15,7 @@ static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/lato/Lato-Bold.ttf");
 const NOISE_SKSL: &str = include_str!("assets/noise.sksl");
 const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;
-pub const LABEL_SIZE: f32 = 6.0;
+pub const LABEL_SIZE: f32 = 4.0;
 
 pub const MIN_ZOOM: f32 = 0.35;
 pub const MAX_ZOOM: f32 = 4.0;
@@ -140,8 +140,9 @@ impl Skia {
         self.get_canvas().clear(Color::TRANSPARENT);
         let mut paint_background = Paint::default();
         let bg = Color::from_rgb(0x08, 0x1A, 0x30); // Deep Trench Blue
-                                                    //let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
-                                                    //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
+        //let bg = Color::from_rgb(108, 192, 216);
+        //let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
+        //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
         paint_background.set_style(PaintStyle::Fill);
         paint_background.set_shader(self.create_noise_shader(bg, NOISE_MIX));
         self.get_canvas().draw_rect(Rect::from_xywh(0.0, 0.0, w as f32, h as f32), &paint_background);
