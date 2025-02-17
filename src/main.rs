@@ -34,9 +34,9 @@ fn main() {
 
     // Create player(s)
     app_state.players[0].assign_all(&geo_and_cities);
-    let city = app_state.players[0].cities.remove(0);
-    app_state.selected_city = Some(city.clone());
-    app_state.players[1].change_ownership(city);
+    //   let city = app_state.players[0].cities.remove(0);
+    //   app_state.selected_city = Some(city.clone());
+    //    app_state.players[1].change_ownership(city);
     //    app_state.zoom_to_selected(&mut skia);
 
     loop {
@@ -44,9 +44,9 @@ fn main() {
         sdl.frame_start();
         skia.set_matrix(&sdl);
         skia.set_zoom_target(&sdl);
-        draw_country(&mut skia, &geo_and_cities.geo_with_path);
-        draw_ways(&mut skia, &geo_and_cities.ways);
+        //        draw_country(&mut skia, &geo_and_cities.geo_with_path);
         draw_dem(&mut skia, &geo_and_cities.dem);
+        draw_ways(&mut skia, &geo_and_cities.ways);
         draw_all_cities(&mut skia, &app_state);
 
         // Events
@@ -63,6 +63,7 @@ fn main() {
                 } => match text.to_uppercase().as_str() {
                     "Z" => app_state.zoom_to_selected(&mut skia),
                     "X" => app_state.zoom_out(&mut skia),
+                    "C" => app_state.zoom_in(&mut skia),
                     _ => {}
                 },
 
@@ -90,11 +91,11 @@ fn main() {
                 Event::MouseMotion {
                     x,
                     y,
-                    xrel,
-                    yrel,
+                    xrel: x_rel,
+                    yrel: y_rel,
                     ..
                 } => {
-                    handle_mouse_motion(&mut skia, sdl.centre, x, y, xrel, yrel);
+                    handle_mouse_motion(&mut skia, sdl.centre, x, y, x_rel, y_rel);
                 }
 
                 _ => {}

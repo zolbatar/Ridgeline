@@ -16,9 +16,14 @@ impl AppState {
             skia.zoom = skia.zoom_max / 2.0;
         }
     }
-    
-    pub  fn zoom_out(&self, skia: &mut Skia) {
-        skia.target = Point::new(0.0, -5000.0);
-        skia.zoom = skia.zoom_min;
+
+    pub fn zoom_out(&self, skia: &mut Skia) {
+        skia.zoom /= 2.0;
+        skia.zoom = skia.zoom.clamp(skia.zoom_min, skia.zoom_max);
+    }
+
+    pub fn zoom_in(&self, skia: &mut Skia) {
+        skia.zoom *= 2.0;
+        skia.zoom = skia.zoom.clamp(skia.zoom_min, skia.zoom_max);
     }
 }

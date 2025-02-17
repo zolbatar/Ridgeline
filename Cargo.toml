@@ -10,11 +10,10 @@ gl = "0.14.0"
 rand = "0.9.0"
 geojson = "0.24.1"
 geo = "0.29.3"
+geos = "10.0.0"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
 serde_cbor = "0.11.2"
-csv = "1.1"
 shapefile = "0.6.0"
 proj = "0.28.0"
-petgraph = "0.7.1"
-ordered-float = "4.6.0"
+gdal = { version = "0.17.1", features = ["bindgen"] }

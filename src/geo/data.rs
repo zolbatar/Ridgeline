@@ -33,6 +33,8 @@ pub enum WayClass {
     BRoad,
     ARoad,
     Motorway,
+    Unclassified,
+    Unknown,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,6 +44,7 @@ pub enum WayForm {
     CollapsedDualCarriageway,
     Roundabout,
     SlipRoad,
+    PublicTransportWay,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

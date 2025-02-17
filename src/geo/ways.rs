@@ -1,11 +1,14 @@
 use crate::geo::data::{Way, WayClass, WayForm, WayPoint, WaySkia};
 use crate::geo::load::RATIO_ADJUST;
-use crate::geo::optimise::{multilinestring_to_waypoints, simplify_multilinestring, waypoints_to_multilinestring};
 use crate::gfx::skia::Skia;
+use gdal::vector::LayerAccess;
+use gdal::Dataset;
 use serde_cbor::from_reader;
 use shapefile::dbase::{FieldValue, Record};
 use shapefile::{PolylineZ, ShapeType};
 use skia_safe::paint::Style;
+use skia_safe::svg::fe::Func;
+use skia_safe::wrapper::NativeTransmutableWrapper;
 use skia_safe::{scalar, Color, Paint, Point};
 use std::collections::HashMap;
 use std::error::Error;
@@ -13,6 +16,7 @@ use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use std::process::exit;
 
 pub fn load_ways() -> HashMap<WayClass, Vec<WaySkia>> {
     let file = File::open("data/Ways.cbor").expect("Unable to open Ways file");
@@ -29,7 +33,7 @@ pub fn load_ways() -> HashMap<WayClass, Vec<WaySkia>> {
         let mv = ways.get_mut(&class).unwrap();
         for location in locations.iter() {
             let mut p = skia_safe::Path::new();
-            location.way_points.iter().enumerate().for_each(|(i, wp)| {
+            location.way_points.iter().enumerate().for_each(|(_, wp)| {
                 let cpp = Point::new(wp.x as scalar, -wp.y as scalar);
                 if wp.is_start {
                     p.move_to(cpp);
@@ -56,132 +60,149 @@ pub fn serialize_ways(m: HashMap<WayClass, Vec<Way>>) -> Result<(), Box<dyn Erro
     Ok(())
 }
 
-pub fn create_ways() -> HashMap<WayClass, Vec<Way>> {
-    let dir = "/Users/daryl/OSM/oproad_essh_gb/data/".to_string();
-    let mut all_files = Vec::new();
-    let entries = fs::read_dir(&dir).unwrap();
-    for entry in entries {
-        let entry = entry.unwrap();
-        let path = entry.path();
+pub fn create_ways() {
+    let dataset = Dataset::open("/Users/daryl/OSM/oproad_gpkg_gb/Data/oproad_gb.gpkg").unwrap();
+    let mut road_link = dataset.layer_by_name("road_link").unwrap();
 
-        if path.is_file() {
-            if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                if file_name.contains(".shp") {
-                    all_files.push(dir.clone() + file_name);
-                }
-            }
-        }
-    }
-
-    fn extract_character(record: &Record, field_name: &str) -> String {
-        if let Some(FieldValue::Character(Some(x))) = record.get(field_name) {
-            x.clone()
-        } else {
-            "".to_string()
-        }
-    }
-
-    // Load OS data
+    // Each feature is a separate road link
     let mut ways = Vec::new();
-    for filename in all_files.iter() {
-        let filename = Path::new(&filename);
-        let mut reader = shapefile::Reader::from_path(filename).unwrap();
+    for feature in road_link.features() {
+        // Helper function to extract values
+        let extract_string = |field: &str| {
+            let uw = feature.field(field).unwrap_or_default();
+            if let Some(value) = uw {
+                value.into_string().unwrap()
+            } else {
+                String::new()
+            }
+        };
 
-        for result in reader.iter_shapes_and_records() {
-            let (shape, record) = result.unwrap();
-            if let Some(FieldValue::Character(Some(road_name))) = record.get("roadNumber") {
-                //let function = extract_character(&record, "function");
-                let form = extract_character(&record, "formOfWay");
-                let class = extract_character(&record, "class");
-                //println!("Road: '{}'/'{}'/'{}'/'{}'", x, class, function, form);
+        /*        for (field_name, field_value) in feature.fields() {
+            println!("{} {:?}", field_name, field_value);
+        }*/
 
-                let clazz = match class.as_str() {
-                    "A Road" => WayClass::ARoad,
-                    "B Road" => WayClass::BRoad,
-                    "Motorway" => WayClass::Motorway,
-                    _ => todo!("Unknown class: {}", class),
-                };
+        // Get feature values
+        let road_classification = extract_string("road_classification");
+        let road_function = extract_string("road_function");
+        let road_number = extract_string("road_number");
+        let form_of_way = extract_string("form_of_way");
+        let name = extract_string("name_1");
 
-                let forme = match form.as_str() {
-                    "Single Carriageway" => WayForm::SingleCarriageway,
-                    "Dual Carriageway" => WayForm::DualCarriageway,
-                    "Collapsed Dual Carriageway" => WayForm::CollapsedDualCarriageway,
-                    "Slip Road" => WayForm::SlipRoad,
-                    "Roundabout" => WayForm::Roundabout,
-                    _ => todo!("Unknown form: {}", form),
-                };
+        let clazz = match road_classification.as_str() {
+            "A Road" => WayClass::ARoad,
+            "B Road" => WayClass::BRoad,
+            "Motorway" => WayClass::Motorway,
+            "Unclassified" => WayClass::Unclassified,
+            "Not Classified" => WayClass::Unclassified,
+            "Classified Unnumbered" => WayClass::Unclassified,
+            "Unknown" => WayClass::Unknown,
+            _ => todo!("Unknown class: {}", road_classification),
+        };
 
-                /*                for (name, value) in record {
-                    println!("\t{}: {:?}, ", name, value);
-                }
-                println!();*/
+        let form = match form_of_way.as_str() {
+            "Single Carriageway" => WayForm::SingleCarriageway,
+            "Shared Use Carriageway" => WayForm::SingleCarriageway,
+            "Dual Carriageway" => WayForm::DualCarriageway,
+            "Collapsed Dual Carriageway" => WayForm::CollapsedDualCarriageway,
+            "Slip Road" => WayForm::SlipRoad,
+            "Roundabout" => WayForm::Roundabout,
+            "Guided Busway" => WayForm::PublicTransportWay,
+            _ => todo!("Unknown form: {}", form_of_way),
+        };
 
-                match shape.shapetype() {
-                    ShapeType::PolylineZ => {
-                        let polyline: PolylineZ = shape.try_into().unwrap();
-
-                        // Iterate over parts (a polyline can have multiple parts)
-                        for part in polyline.parts().iter() {
-                            let mut my = Vec::new();
-                            for (i, point) in part.iter().enumerate() {
-                                my.push(WayPoint {
-                                    is_start: i == 0,
-                                    x: point.x / RATIO_ADJUST as f64,
-                                    y: point.y / RATIO_ADJUST as f64,
-                                });
-                            }
-                            ways.push(Way {
-                                name: road_name.to_string(),
-                                class: clazz.clone(),
-                                form: forme.clone(),
-                                way_points: my,
-                            });
-                        }
-                    }
-
-                    ShapeType::PointZ => {
-                        //let pointz: PointZ = shape.try_into().unwrap();
-                        //                    let a = 1;
-                    }
-
-                    _ => println!("Skipping unknown shape type {:?}", shape.shapetype()),
-                }
-            };
+        // Geometry
+        let geometry = feature.geometry().unwrap();
+        //geometry.simplify_preserve_topology(0.1).unwrap();
+        let mut my = Vec::new();
+        for i in 0..geometry.point_count() {
+            let (x, y, _) = geometry.get_point(i as i32);
+            my.push(WayPoint {
+                is_start: i == 0,
+                x: x / RATIO_ADJUST as f64,
+                y: y / RATIO_ADJUST as f64,
+            });
         }
+
+        // And save
+        ways.push(Way {
+            name,
+            class: clazz,
+            form,
+            way_points: my,
+        });
     }
+
     println!("There are {} raw ways", ways.len());
 
-    // Concatenate lines
-    let mut wayhm: HashMap<String, Way> = HashMap::new();
-    for mut way in ways.into_iter() {
-        if !wayhm.contains_key(&way.name) {
-            wayhm.insert(way.name.clone(), way.clone());
+    // Concatenate road
+    let mut waypoints_concat: HashMap<String, Vec<Way>> = HashMap::new();
+    for way in ways.into_iter() {
+        if !waypoints_concat.contains_key(&way.name) {
+            waypoints_concat.insert(way.name.clone(), vec![way]);
         } else {
-            wayhm.get_mut(&way.name).unwrap().way_points.append(&mut way.way_points);
+            waypoints_concat.get_mut(&way.name).unwrap().push(way);
         }
     }
+
+    // Serialise
+    let file = File::create("data/WaysRaw.cbor").unwrap();
+    let writer = std::io::BufWriter::new(file);
+    serde_cbor::to_writer(writer, &waypoints_concat).unwrap();
+}
+
+pub fn optimise_ways() -> HashMap<WayClass, Vec<Way>> {
+    let file = File::open("data/WaysRaw.cbor").expect("Unable to open WaysRaw file");
+    let reader = BufReader::new(file);
+    let waypoints_concat: HashMap<String, Vec<Way>> = from_reader(reader).expect("Unable to read WaysRaw file");
 
     // Now categorise
     let mut whm = HashMap::new();
     whm.insert(WayClass::BRoad, Vec::new());
     whm.insert(WayClass::ARoad, Vec::new());
     whm.insert(WayClass::Motorway, Vec::new());
-    for (_, mut way) in wayhm.into_iter() {
-        let v = whm.get_mut(&way.class).unwrap();
+    whm.insert(WayClass::Unclassified, Vec::new());
+    whm.insert(WayClass::Unknown, Vec::new());
+    let mut count_before = 0;
+    let mut count = 0;
+    for (name, way) in waypoints_concat.into_iter() {
+        way.into_iter().for_each(|way| {
+            count += way.way_points.len();
+            whm.get_mut(&way.class).unwrap().push(way);
+        });
+
+        //        let mut v = Vec::new();
+        /*for segment in way.into_iter() {
+            count_before += segment.way_points.len();
+
+            // Fill CoordSeq with coordinate values
+            let mut coord_seq = CoordSeq::new(segment.way_points.len() as u32, CoordDimensions::TwoD).unwrap();
+            for (i, coord) in segment.way_points.iter().enumerate() {
+                coord_seq.set_x(i, coord.x).unwrap();
+                coord_seq.set_y(i, coord.y).unwrap();
+            }
+            let ls = Geometry::create_line_string(coord_seq).unwrap();
+            v.push(ls);
+        }
+        let result = union_linestrings(&v);
+        //        println!("{:?}", result);
+        let aa = 1;*/
 
         // Optimise way
-        let road_network = waypoints_to_multilinestring(way.way_points);
-        let road_network_simplified = simplify_multilinestring(&road_network, 0.001);
-        let waypoints = multilinestring_to_waypoints(road_network);
-        way.way_points = waypoints;
+        /*        let road_network = waypoints_to_multilinestring(way.way_points);
+        let road_network_simplified = optimize_multilinestring(&road_network, 0.001);
+        let waypoints = multilinestring_to_waypoints(road_network_simplified);
+        way.way_points = waypoints;*/
 
-        v.push(way);
+        //        v.push(way);
     }
+    println!("There are {}/{} raw points", count_before, count);
 
     whm
 }
 
 pub fn draw_ways(skia: &mut Skia, ways: &HashMap<WayClass, Vec<WaySkia>>) {
+    draw_ways_type(skia, ways.get(&WayClass::Unknown).unwrap());
+    draw_ways_type(skia, ways.get(&WayClass::Unclassified).unwrap());
     draw_ways_type(skia, ways.get(&WayClass::BRoad).unwrap());
     draw_ways_type(skia, ways.get(&WayClass::ARoad).unwrap());
     draw_ways_type(skia, ways.get(&WayClass::Motorway).unwrap());
@@ -206,8 +227,26 @@ fn draw_ways_type(skia: &mut Skia, ways: &[WaySkia]) {
     paint_b_road.set_color(Color::from_rgb(232, 144, 30));
     paint_b_road.set_stroke_width(0.025);
 
+    let mut paint_unclassified_road = Paint::default();
+    paint_unclassified_road.set_anti_alias(true);
+    paint_unclassified_road.set_style(Style::Stroke);
+    paint_unclassified_road.set_color(Color::BLACK);
+    paint_unclassified_road.set_stroke_width(0.025);
+
+    let mut paint_unknown_road = Paint::default();
+    paint_unknown_road.set_anti_alias(true);
+    paint_unknown_road.set_style(Style::Stroke);
+    paint_unknown_road.set_color(Color::GRAY);
+    paint_unknown_road.set_stroke_width(0.025);
+
     ways.iter().for_each(|w| {
         match w.class {
+            WayClass::Unknown => {
+                skia.get_canvas().draw_path(&w.path, &paint_unknown_road);
+            }
+            WayClass::Unclassified => {
+                skia.get_canvas().draw_path(&w.path, &paint_unclassified_road);
+            }
             WayClass::ARoad => {
                 skia.get_canvas().draw_path(&w.path, &paint_a_road);
             }

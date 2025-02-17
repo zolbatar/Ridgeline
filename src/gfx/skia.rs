@@ -17,7 +17,7 @@ const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;
 pub const LABEL_SIZE: f32 = 1.0;
 
-pub const MIN_ZOOM: f32 = 0.5;
+pub const MIN_ZOOM: f32 = 0.7;
 pub const MAX_ZOOM: f32 = 100.0;
 
 pub struct Skia {
@@ -33,7 +33,7 @@ pub struct Skia {
     pub panning: bool,
     pub noise_shader: RuntimeEffect,
     pub drop_shadow: Option<ImageFilter>,
-    pub _drop_shadow_white: Option<ImageFilter>,
+    pub drop_shadow_white: Option<ImageFilter>,
 }
 
 impl Skia {
@@ -75,7 +75,7 @@ impl Skia {
         let noise_shader = RuntimeEffect::make_for_shader(NOISE_SKSL, None).expect("Failed to make runtime effect");
 
         // Filters
-        let drop_shadow = drop_shadow_only(Vector::new(3.0, 3.0), (5.0, 5.0), Color::from_argb(192, 0, 0, 0), None, None, None);
+        let drop_shadow = drop_shadow_only(Vector::new(3.0, 3.0), (5.0, 5.0), Color::BLACK, None, None, None);
         let drop_shadow_white = drop_shadow_only(Vector::new(1.5, 1.5), (2.0, 2.0), Color::from_argb(64, 255, 255, 255), None, None, None);
 
         // Surface
@@ -90,11 +90,11 @@ impl Skia {
             zoom: MIN_ZOOM,
             zoom_min: MIN_ZOOM,
             zoom_max: MAX_ZOOM,
-            target: Point::new(400.0, -450.0),
+            target: Point::new(400.0, -525.0),
             panning: false,
             noise_shader,
             drop_shadow,
-            _drop_shadow_white: drop_shadow_white,
+            drop_shadow_white: drop_shadow_white,
         };
 
         unsafe {
@@ -140,8 +140,9 @@ impl Skia {
         self.get_canvas().clear(Color::TRANSPARENT);
         let mut paint_background = Paint::default();
         let bg = Color::from_rgb(0x08, 0x1A, 0x30); // Deep Trench Blue
-                                                    //let bg = Color::from_rgb(108, 192, 216);
-        let bg = Color::from_rgb(0x40, 0x40, 0x40);
+        let bg = Color::from_rgb(198, 221, 237);
+        let bg = Color::from_rgb(159, 191, 219);
+        //let bg = Color::from_rgb(0x40, 0x40, 0x40);
         //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
         paint_background.set_style(PaintStyle::Fill);
         paint_background.set_shader(self.create_noise_shader(bg, NOISE_MIX));
@@ -189,7 +190,7 @@ impl Skia {
     }
 }
 
-pub fn clip_circle(canvas: &Canvas, center: Point, radius: f32) {
+pub fn _clip_circle(canvas: &Canvas, center: Point, radius: f32) {
     let mut path = Path::new();
     path.add_circle(center, radius, None);
 

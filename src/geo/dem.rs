@@ -2,14 +2,12 @@ use crate::geo::load::RATIO_ADJUST;
 use crate::gfx::skia::Skia;
 use proj::{Coord, Proj};
 use skia_safe::paint::Style;
-use skia_safe::{BlendMode, Color, Image, Paint, Rect};
+use skia_safe::{BlendMode, Color, FilterMode, FilterOptions, Image, MipmapMode, Paint, Rect, SamplingOptions, Vector};
 
 pub fn draw_dem(skia: &mut Skia, image: &Image) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_style(Style::Fill);
-    paint.set_color(Color::WHITE);
-    paint.set_alpha(64);
 
     // Rescale
     let north = 60.655938;
@@ -29,8 +27,21 @@ pub fn draw_dem(skia: &mut Skia, image: &Image) {
         (c2.x() - c1.x()) / RATIO_ADJUST,
         -(c2.y() - c1.y()) / RATIO_ADJUST,
     );
-    paint.set_blend_mode(BlendMode::Multiply);
-    skia.get_canvas().draw_image_rect(image, None, dst, &paint);
-//    paint.set_blend_mode(BlendMode::default());
-//    skia.get_canvas().draw_image_rect(image, None, dst, &paint);
+
+    let mut paint_shadow = Paint::default();
+    paint_shadow.set_anti_alias(true);
+    paint_shadow.set_style(Style::Fill);
+    paint_shadow.set_color(Color::BLACK);
+    paint_shadow.set_image_filter(skia.drop_shadow.clone());
+
+    // Draw "shadow"
+    skia.get_canvas().save();
+    let zz = 0.1;
+    skia.get_canvas().translate(Vector::new(zz, zz));
+    skia.get_canvas().draw_image_rect(image, None, dst, &paint_shadow);
+    skia.get_canvas().restore();
+
+    // Draw DEM
+    let sampling = SamplingOptions::new(FilterMode::Linear, MipmapMode::Linear);
+    skia.get_canvas().draw_image_rect_with_sampling_options(image, None, dst, sampling, &paint);
 }

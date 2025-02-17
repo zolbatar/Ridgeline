@@ -4,9 +4,10 @@ use crate::geo::data::Location;
 use crate::geo::load::RATIO_ADJUST;
 use crate::gfx::skia::{Skia, LABEL_SIZE};
 use serde_cbor::from_reader;
+use skia_safe::image_filters::drop_shadow_only;
 use skia_safe::paint::Style;
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{scalar, Color, Paint, Point, Rect};
+use skia_safe::{scalar, Color, Paint, Point, Rect, Vector};
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
@@ -14,97 +15,29 @@ use std::rc::Rc;
 pub fn draw_all_cities(skia: &mut Skia, app_state: &AppState) {
     let font = &skia.font_label.clone();
     let font_bold = &skia.font_label_bold.clone();
-    let radius = LABEL_SIZE * 0.65;
-    let dot_radius = radius / 5.0;
-    let spacing = LABEL_SIZE * 0.1;
-    let border_width = spacing / 1.0;
-    let corner_radius = radius + spacing;
-    let bar_width = 128.0;
+    let descent = font.metrics().1.descent;
 
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
-    paint.set_style(Style::Fill);
+    paint.set_style(Style::StrokeAndFill);
+    paint.set_color(Color::BLACK);
 
-    let mut paint_bg = Paint::default();
-    paint_bg.set_anti_alias(true);
-    paint_bg.set_style(Style::Fill);
-
-    let mut paint_bg_alpha = Paint::default();
-    paint_bg_alpha.set_anti_alias(true);
-    paint_bg_alpha.set_style(Style::Fill);
-    paint_bg_alpha.set_color(Color::LIGHT_GRAY);
-    paint_bg_alpha.set_alpha(128);
-
-    let mut paint_border = Paint::default();
-    paint_border.set_anti_alias(true);
-    paint_border.set_style(Style::Stroke);
-    paint_border.set_color(Color::WHITE);
-    paint_border.set_stroke_width(border_width);
+    let drop_shadow_white = drop_shadow_only(Vector::new(0.00, 0.00), (0.15, 0.15), Color::WHITE,
+                                             None, None, None);
 
     let mut paint_shadow = Paint::default();
     paint_shadow.set_anti_alias(true);
     paint_shadow.set_style(Style::Fill);
-    paint_shadow.set_image_filter(skia.drop_shadow.clone());
-
-    let mut paint_dot = Paint::default();
-    paint_dot.set_anti_alias(true);
-    paint_dot.set_style(Style::Fill);
-    paint_dot.set_color(Color::BLACK);
-    paint_dot.set_alpha(255);
+    paint_shadow.set_image_filter(drop_shadow_white);
 
     let canvas = skia.get_canvas();
     app_state.players.iter().for_each(|player| {
-        // Colour according to ownership
-        let (font, descent) = match player.player_type {
-            PlayerType::Player => {
-                paint_bg.set_color(Color::YELLOW);
-                paint.set_color(Color::BLACK);
-                (font_bold, font_bold.metrics().1.descent)
-            }
-            PlayerType::NotAssigned => {
-                paint_bg.set_color(Color::DARK_GRAY);
-                paint.set_color(Color::WHITE);
-                (font, font.metrics().1.descent)
-            }
-        };
-
         player.cities.iter().for_each(|city| {
             let l = &city.location;
-
-            // Width of text
-            let (w, _bounds) = font.measure_text(&l.name, Some(&paint));
-
-            let r1 = if app_state.selected_city.is_some() && Rc::eq(city, app_state.selected_city.as_ref().unwrap()) {
-                Rect::from_xywh(
-                    l.x as scalar - radius - spacing - bar_width,
-                    -l.y as scalar - radius - spacing,
-                    w + spacing * 2.0,
-                    radius * 2.0 + spacing * 2.0,
-                )
-            } else {
-                Rect::from_xywh(
-                    l.x as scalar - radius - spacing,
-                    -l.y as scalar - radius - spacing,
-                    w + spacing * 2.0 + radius * 2.0,
-                    radius * 2.0 + spacing * 2.0,
-                )
-            };
-            let p1 = Point::new(l.x as scalar, -l.y as scalar);
-            let p2 = Point::new(l.x as scalar, -l.y as scalar + radius - descent);
-
-            // Apply the clip circle
-            /*            canvas.save();
-            clip_circle(canvas, p1, radius);*/
-            canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_shadow);
-            canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_bg);
-            canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_border);
-            /*            canvas.restore();
-            canvas.draw_circle(p1, radius, &paint_bg_alpha);
-            canvas.draw_circle(p1, dot_radius, &paint_dot);
-            canvas.draw_circle(p1, radius, &paint_border);*/
-            //            canvas.draw_circle(p1, dot_radius, &paint_dot);
-            //println!("{}, {}", p2.x, p2.y);
-            canvas.draw_text_align(&l.name, p2, font, &paint, Align::Left);
+            let (w, bounds) = font.measure_text(&l.name, Some(&paint));
+            let p2 = Point::new(l.x as scalar - w / 2.0, -l.y as scalar - bounds.y() / 2.0);
+            canvas.draw_text_align(&l.name, p2, font_bold, &paint_shadow, Align::Left);
+            canvas.draw_text_align(&l.name, p2, font_bold, &paint, Align::Left);
         })
     })
 }
