@@ -5,10 +5,7 @@ use skia_safe::gpu::gl::{FramebufferInfo, Interface};
 use skia_safe::gpu::surfaces::wrap_backend_render_target;
 use skia_safe::gpu::{ContextOptions, DirectContext};
 use skia_safe::image_filters::drop_shadow_only;
-use skia_safe::{
-    gpu, Canvas, ClipOp, Color, Color4f, Data, Font, FontMgr, ImageFilter, Paint, PaintStyle, Path, Point, Rect, RuntimeEffect, Shader,
-    Surface, Vector,
-};
+use skia_safe::{gpu, Canvas, ClipOp, Color, Color4f, Data, Font, FontMgr, Image, ImageFilter, Paint, PaintStyle, Path, Point, Rect, RuntimeEffect, Shader, Surface, Vector};
 
 static MAIN_FONT: &[u8] = include_bytes!("assets/lato/Lato-Regular.ttf");
 static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/lato/Lato-Bold.ttf");
@@ -17,8 +14,8 @@ const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;
 pub const LABEL_SIZE: f32 = 4.0;
 
-pub const MIN_ZOOM: f32 = 0.35;
-pub const MAX_ZOOM: f32 = 4.0;
+pub const MIN_ZOOM: f32 = 0.5;
+pub const MAX_ZOOM: f32 = 100.0;
 
 pub struct Skia {
     context: DirectContext,
@@ -90,7 +87,7 @@ impl Skia {
             zoom: MIN_ZOOM,
             zoom_min: MIN_ZOOM,
             zoom_max: MAX_ZOOM,
-            target: Point::new(-260.0, -7500.0),
+            target: Point::new(400.0, -450.0),
             panning: false,
             noise_shader,
             drop_shadow,
@@ -140,9 +137,9 @@ impl Skia {
         self.get_canvas().clear(Color::TRANSPARENT);
         let mut paint_background = Paint::default();
         let bg = Color::from_rgb(0x08, 0x1A, 0x30); // Deep Trench Blue
-        //let bg = Color::from_rgb(108, 192, 216);
-        //let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
-        //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
+                                                    //let bg = Color::from_rgb(108, 192, 216);
+                                                    //let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
+                                                    //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
         paint_background.set_style(PaintStyle::Fill);
         paint_background.set_shader(self.create_noise_shader(bg, NOISE_MIX));
         self.get_canvas().draw_rect(Rect::from_xywh(0.0, 0.0, w as f32, h as f32), &paint_background);
@@ -195,4 +192,11 @@ pub fn clip_circle(canvas: &Canvas, center: Point, radius: f32) {
 
     // Subtract this path from the existing clip region
     canvas.clip_path(&path, ClipOp::Difference, true);
+}
+
+pub fn load_image_from_file(path: &str) -> Image {
+    // Read the image file as raw bytes
+    let data = std::fs::read(path).unwrap();
+    let sk_data = Data::new_copy(&data);
+    Image::from_encoded(sk_data).unwrap()
 }

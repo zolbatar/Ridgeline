@@ -93,11 +93,12 @@ pub fn draw_all_cities(skia: &mut Skia, app_state: &AppState) {
             canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_shadow);
             canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_bg);
             canvas.draw_round_rect(r1, corner_radius, corner_radius, &paint_border);
-/*            canvas.restore();
+            /*            canvas.restore();
             canvas.draw_circle(p1, radius, &paint_bg_alpha);
             canvas.draw_circle(p1, dot_radius, &paint_dot);
             canvas.draw_circle(p1, radius, &paint_border);*/
-//            canvas.draw_circle(p1, dot_radius, &paint_dot);
+            //            canvas.draw_circle(p1, dot_radius, &paint_dot);
+            //println!("{}, {}", p2.x, p2.y);
             canvas.draw_text_align(&l.name, p2, font, &paint, Align::Left);
         })
     })
