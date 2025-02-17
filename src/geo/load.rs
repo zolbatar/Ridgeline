@@ -1,5 +1,6 @@
-use crate::geo::data::{Geo, GeoWithPathAndCities, Location};
 use crate::geo::boundary::convert_paths;
+use crate::geo::cities::load_cities_cbor_file;
+use crate::geo::data::{Geo, GeoWithPathAndCities};
 use crate::geo::ways::{create_ways, load_ways, serialize_ways};
 use crate::gfx::skia::load_image_from_file;
 use geo::Geometry;
@@ -8,7 +9,6 @@ use serde_cbor::from_reader;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
-use std::rc::Rc;
 
 pub const RATIO_ADJUST: f32 = 1000.0;
 
@@ -70,7 +70,7 @@ pub fn load(radius: f64) -> Result<GeoWithPathAndCities, Box<dyn Error>> {
     let file = File::open("data/Geo.cbor")?;
     let reader = BufReader::new(file);
     let data: Vec<Geo> = from_reader(reader)?;
-    let cities = load_cbor_file("data/Cities.cbor", radius);
+    let cities = load_cities_cbor_file("data/Cities.cbor", radius);
     let ways = load_ways();
     let image = load_image_from_file("data/DEM.png");
 
@@ -81,43 +81,4 @@ pub fn load(radius: f64) -> Result<GeoWithPathAndCities, Box<dyn Error>> {
         ways,
         dem: image,
     })
-}
-
-fn load_cbor_file(file_path: &str, radius: f64) -> Vec<Rc<Location>> {
-    // Open the CBOR file
-    let file = File::open(file_path).expect("Unable to open GEO file");
-    let reader = BufReader::new(file);
-
-    // Deserialize the CBOR data into a Vec<Location>
-    let locations: Vec<Location> = from_reader(reader).expect("Unable to read GEO file");
-
-    // Now only select those that aren't too close to a neighbour, starting at largest down
-    let mut locations_out: Vec<Rc<Location>> = Vec::new();
-    for mut location in locations.into_iter() {
-        if location.population >= 10000 {
-            location.x /= RATIO_ADJUST as f64;
-            location.y /= RATIO_ADJUST as f64;
-            let mut minimum_distance = f64::INFINITY;
-            for location_out in &locations_out {
-                let dist = calculate_distance(&location, location_out);
-                if dist < minimum_distance {
-                    minimum_distance = dist;
-                }
-                if dist < radius {
-                    break;
-                }
-            }
-            if minimum_distance >= radius {
-                locations_out.push(Rc::new(location));
-            }
-        }
-    }
-
-    locations_out
-}
-
-fn calculate_distance(city1: &Location, city2: &Location) -> f64 {
-    let dx = city1.x - city2.x;
-    let dy = city1.y - city2.y;
-    (dx * dx + dy * dy).sqrt()
 }

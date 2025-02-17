@@ -24,7 +24,7 @@ fn main() {
 
     // Create and load geo data
     create_geo();
-    let geo_and_cities = load(25.0).expect("Failed to load geojson");
+    let geo_and_cities = load(5.0).expect("Failed to load geojson");
 
     // App state
     let mut app_state = AppState {

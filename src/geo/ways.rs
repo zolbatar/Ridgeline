@@ -1,5 +1,6 @@
 use crate::geo::data::{Way, WayClass, WayForm, WayPoint, WaySkia};
 use crate::geo::load::RATIO_ADJUST;
+use crate::geo::optimise::{multilinestring_to_waypoints, simplify_multilinestring, waypoints_to_multilinestring};
 use crate::gfx::skia::Skia;
 use serde_cbor::from_reader;
 use shapefile::dbase::{FieldValue, Record};
@@ -148,7 +149,7 @@ pub fn create_ways() -> HashMap<WayClass, Vec<Way>> {
             };
         }
     }
-    println!("There are {} ways", ways.len());
+    println!("There are {} raw ways", ways.len());
 
     // Concatenate lines
     let mut wayhm: HashMap<String, Way> = HashMap::new();
@@ -160,12 +161,20 @@ pub fn create_ways() -> HashMap<WayClass, Vec<Way>> {
         }
     }
 
+    // Now categorise
     let mut whm = HashMap::new();
     whm.insert(WayClass::BRoad, Vec::new());
     whm.insert(WayClass::ARoad, Vec::new());
     whm.insert(WayClass::Motorway, Vec::new());
-    for (_, way) in wayhm.into_iter() {
+    for (_, mut way) in wayhm.into_iter() {
         let v = whm.get_mut(&way.class).unwrap();
+
+        // Optimise way
+        let road_network = waypoints_to_multilinestring(way.way_points);
+        let road_network_simplified = simplify_multilinestring(&road_network, 0.001);
+        let waypoints = multilinestring_to_waypoints(road_network);
+        way.way_points = waypoints;
+
         v.push(way);
     }
 
@@ -179,45 +188,33 @@ pub fn draw_ways(skia: &mut Skia, ways: &HashMap<WayClass, Vec<WaySkia>>) {
 }
 
 fn draw_ways_type(skia: &mut Skia, ways: &[WaySkia]) {
-    let mut paint_motorway_border = Paint::default();
-    paint_motorway_border.set_anti_alias(true);
-    paint_motorway_border.set_style(Style::Stroke);
-    paint_motorway_border.set_color(Color::BLACK);
-    paint_motorway_border.set_stroke_width(1.0);
     let mut paint_motorway = Paint::default();
     paint_motorway.set_anti_alias(true);
     paint_motorway.set_style(Style::Stroke);
     paint_motorway.set_color(Color::from_rgb(123, 104, 238));
-    paint_motorway.set_stroke_width(0.5);
+    paint_motorway.set_stroke_width(0.25);
 
-    let mut paint_a_road_border = Paint::default();
-    paint_a_road_border.set_anti_alias(true);
-    paint_a_road_border.set_style(Style::Stroke);
-    paint_a_road_border.set_color(Color::BLACK);
-    paint_a_road_border.set_stroke_width(0.5);
     let mut paint_a_road = Paint::default();
     paint_a_road.set_anti_alias(true);
     paint_a_road.set_style(Style::Stroke);
     paint_a_road.set_color(Color::GREEN);
-    paint_a_road.set_stroke_width(0.25);
+    paint_a_road.set_stroke_width(0.1);
 
     let mut paint_b_road = Paint::default();
     paint_b_road.set_anti_alias(true);
     paint_b_road.set_style(Style::Stroke);
     paint_b_road.set_color(Color::from_rgb(232, 144, 30));
-    paint_b_road.set_stroke_width(0.25);
+    paint_b_road.set_stroke_width(0.025);
 
     ways.iter().for_each(|w| {
         match w.class {
             WayClass::ARoad => {
-                skia.get_canvas().draw_path(&w.path, &paint_a_road_border);
                 skia.get_canvas().draw_path(&w.path, &paint_a_road);
             }
             WayClass::BRoad => {
                 skia.get_canvas().draw_path(&w.path, &paint_b_road);
             }
             WayClass::Motorway => {
-                skia.get_canvas().draw_path(&w.path, &paint_motorway_border);
                 skia.get_canvas().draw_path(&w.path, &paint_motorway);
             }
         };

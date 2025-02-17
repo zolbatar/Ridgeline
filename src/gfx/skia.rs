@@ -15,7 +15,7 @@ static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/lato/Lato-Bold.ttf");
 const NOISE_SKSL: &str = include_str!("assets/noise.sksl");
 const NOISE_MIX: f32 = 0.075;
 pub const FONT_SIZE: f32 = 14.0;
-pub const LABEL_SIZE: f32 = 4.0;
+pub const LABEL_SIZE: f32 = 1.0;
 
 pub const MIN_ZOOM: f32 = 0.5;
 pub const MAX_ZOOM: f32 = 100.0;
