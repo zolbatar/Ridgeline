@@ -1,5 +1,5 @@
 use crate::geo::data::{Geo, GeoWithPathAndCities, Location};
-use crate::geo::paths::convert_paths;
+use crate::geo::boundary::convert_paths;
 use crate::geo::ways::{create_ways, load_ways, serialize_ways};
 use crate::gfx::skia::load_image_from_file;
 use geo::Geometry;

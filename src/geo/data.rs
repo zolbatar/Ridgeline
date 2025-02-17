@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use geo::Polygon;
 use serde::{Deserialize, Serialize};
 use skia_safe::{Image, Path};
@@ -19,7 +20,7 @@ pub struct Geo {
 pub struct GeoWithPathAndCities {
     pub geo_with_path: Vec<GeoWithPath>,
     pub cities: Vec<Rc<Location>>,
-    pub ways: Vec<WaySkia>,
+    pub ways: HashMap<WayClass, Vec<WaySkia>>,
     pub dem: Image,
 }
 
@@ -45,6 +46,7 @@ pub enum WayForm {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WayPoint {
+    pub is_start: bool,
     pub x: f64,
     pub y: f64,
 }

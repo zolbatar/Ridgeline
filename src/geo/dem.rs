@@ -9,8 +9,7 @@ pub fn draw_dem(skia: &mut Skia, image: &Image) {
     paint.set_anti_alias(true);
     paint.set_style(Style::Fill);
     paint.set_color(Color::WHITE);
-    paint.set_alpha(128);
-    paint.set_blend_mode(BlendMode::Multiply);
+    paint.set_alpha(64);
 
     // Rescale
     let north = 60.655938;
@@ -30,5 +29,8 @@ pub fn draw_dem(skia: &mut Skia, image: &Image) {
         (c2.x() - c1.x()) / RATIO_ADJUST,
         -(c2.y() - c1.y()) / RATIO_ADJUST,
     );
+    paint.set_blend_mode(BlendMode::Multiply);
     skia.get_canvas().draw_image_rect(image, None, dst, &paint);
+//    paint.set_blend_mode(BlendMode::default());
+//    skia.get_canvas().draw_image_rect(image, None, dst, &paint);
 }

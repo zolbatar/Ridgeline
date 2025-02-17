@@ -1,9 +1,9 @@
 use crate::app_state::AppState;
 use crate::game::player::{Player, PlayerType};
+use crate::geo::boundary::draw_country;
 use crate::geo::cities::draw_all_cities;
 use crate::geo::dem::draw_dem;
 use crate::geo::load::{create_geo, load};
-use crate::geo::paths::draw_country;
 use crate::geo::ways::draw_ways;
 use crate::gfx::sdl::Sdl;
 use crate::gfx::skia::Skia;

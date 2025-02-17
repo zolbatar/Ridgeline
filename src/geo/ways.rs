@@ -13,26 +13,30 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-pub fn load_ways() -> Vec<WaySkia> {
+pub fn load_ways() -> HashMap<WayClass, Vec<WaySkia>> {
     let file = File::open("data/Ways.cbor").expect("Unable to open Ways file");
     let reader = BufReader::new(file);
 
     // Deserialize the CBOR data into a Vec<Location>
     let locations: HashMap<WayClass, Vec<Way>> = from_reader(reader).expect("Unable to read Ways file");
 
-    let mut ways = Vec::new();
-    for (_class, locations) in locations.iter() {
+    let mut ways = HashMap::new();
+    let mut count = 0;
+    for (class, locations) in locations.into_iter() {
+        ways.insert(class.clone(), Vec::<WaySkia>::new());
+        count += locations.len();
+        let mv = ways.get_mut(&class).unwrap();
         for location in locations.iter() {
             let mut p = skia_safe::Path::new();
             location.way_points.iter().enumerate().for_each(|(i, wp)| {
                 let cpp = Point::new(wp.x as scalar, -wp.y as scalar);
-                if i == 0 {
+                if wp.is_start {
                     p.move_to(cpp);
                 } else {
                     p.line_to(cpp);
                 }
             });
-            ways.push(WaySkia {
+            mv.push(WaySkia {
                 class: location.class.clone(),
                 _form: location.form.clone(),
                 path: p,
@@ -40,7 +44,7 @@ pub fn load_ways() -> Vec<WaySkia> {
         }
     }
 
-    println!("There are {} ways", ways.len());
+    println!("There are {} ways in {} classes", count, ways.len());
     ways
 }
 
@@ -118,8 +122,9 @@ pub fn create_ways() -> HashMap<WayClass, Vec<Way>> {
                         // Iterate over parts (a polyline can have multiple parts)
                         for part in polyline.parts().iter() {
                             let mut my = Vec::new();
-                            for point in part.iter() {
+                            for (i, point) in part.iter().enumerate() {
                                 my.push(WayPoint {
+                                    is_start: i == 0,
                                     x: point.x / RATIO_ADJUST as f64,
                                     y: point.y / RATIO_ADJUST as f64,
                                 });
@@ -145,11 +150,21 @@ pub fn create_ways() -> HashMap<WayClass, Vec<Way>> {
     }
     println!("There are {} ways", ways.len());
 
+    // Concatenate lines
+    let mut wayhm: HashMap<String, Way> = HashMap::new();
+    for mut way in ways.into_iter() {
+        if !wayhm.contains_key(&way.name) {
+            wayhm.insert(way.name.clone(), way.clone());
+        } else {
+            wayhm.get_mut(&way.name).unwrap().way_points.append(&mut way.way_points);
+        }
+    }
+
     let mut whm = HashMap::new();
-    whm.insert(WayClass::Motorway, Vec::new());
-    whm.insert(WayClass::ARoad, Vec::new());
     whm.insert(WayClass::BRoad, Vec::new());
-    for way in ways.into_iter() {
+    whm.insert(WayClass::ARoad, Vec::new());
+    whm.insert(WayClass::Motorway, Vec::new());
+    for (_, way) in wayhm.into_iter() {
         let v = whm.get_mut(&way.class).unwrap();
         v.push(way);
     }
@@ -157,24 +172,34 @@ pub fn create_ways() -> HashMap<WayClass, Vec<Way>> {
     whm
 }
 
-pub fn draw_ways(skia: &mut Skia, ways: &[WaySkia]) {
+pub fn draw_ways(skia: &mut Skia, ways: &HashMap<WayClass, Vec<WaySkia>>) {
+    draw_ways_type(skia, ways.get(&WayClass::BRoad).unwrap());
+    draw_ways_type(skia, ways.get(&WayClass::ARoad).unwrap());
+    draw_ways_type(skia, ways.get(&WayClass::Motorway).unwrap());
+}
+
+fn draw_ways_type(skia: &mut Skia, ways: &[WaySkia]) {
     let mut paint_motorway_border = Paint::default();
     paint_motorway_border.set_anti_alias(true);
     paint_motorway_border.set_style(Style::Stroke);
     paint_motorway_border.set_color(Color::BLACK);
     paint_motorway_border.set_stroke_width(1.0);
-
     let mut paint_motorway = Paint::default();
     paint_motorway.set_anti_alias(true);
     paint_motorway.set_style(Style::Stroke);
     paint_motorway.set_color(Color::from_rgb(123, 104, 238));
-    paint_motorway.set_stroke_width(0.75);
+    paint_motorway.set_stroke_width(0.5);
 
+    let mut paint_a_road_border = Paint::default();
+    paint_a_road_border.set_anti_alias(true);
+    paint_a_road_border.set_style(Style::Stroke);
+    paint_a_road_border.set_color(Color::BLACK);
+    paint_a_road_border.set_stroke_width(0.5);
     let mut paint_a_road = Paint::default();
     paint_a_road.set_anti_alias(true);
     paint_a_road.set_style(Style::Stroke);
     paint_a_road.set_color(Color::GREEN);
-    paint_a_road.set_stroke_width(0.5);
+    paint_a_road.set_stroke_width(0.25);
 
     let mut paint_b_road = Paint::default();
     paint_b_road.set_anti_alias(true);
@@ -185,6 +210,7 @@ pub fn draw_ways(skia: &mut Skia, ways: &[WaySkia]) {
     ways.iter().for_each(|w| {
         match w.class {
             WayClass::ARoad => {
+                skia.get_canvas().draw_path(&w.path, &paint_a_road_border);
                 skia.get_canvas().draw_path(&w.path, &paint_a_road);
             }
             WayClass::BRoad => {

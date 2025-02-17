@@ -53,6 +53,7 @@ pub fn draw_country(skia: &mut Skia, polys: &Vec<GeoWithPath>) {
     let mut paint_fill = Paint::default();
     paint_fill.set_anti_alias(true);
     paint_fill.set_color(Color::from_rgb(0x50, 0x3A, 0x3C));
+    //paint_fill.set_color(Color::from_rgb(0xC0, 0xC0, 0xC0));
     paint_fill.set_style(Style::Fill);
 
     // Draw "shadow"
@@ -61,7 +62,7 @@ pub fn draw_country(skia: &mut Skia, polys: &Vec<GeoWithPath>) {
     skia.get_canvas().translate(Vector::new(zz, zz));
     for geo in polys {
         for path in geo.polys.iter() {
-            //skia.get_canvas().draw_path(path, &paint_shadow);
+            skia.get_canvas().draw_path(path, &paint_shadow);
         }
     }
     skia.get_canvas().restore();

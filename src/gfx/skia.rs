@@ -5,7 +5,10 @@ use skia_safe::gpu::gl::{FramebufferInfo, Interface};
 use skia_safe::gpu::surfaces::wrap_backend_render_target;
 use skia_safe::gpu::{ContextOptions, DirectContext};
 use skia_safe::image_filters::drop_shadow_only;
-use skia_safe::{gpu, Canvas, ClipOp, Color, Color4f, Data, Font, FontMgr, Image, ImageFilter, Paint, PaintStyle, Path, Point, Rect, RuntimeEffect, Shader, Surface, Vector};
+use skia_safe::{
+    gpu, Canvas, ClipOp, Color, Color4f, Data, Font, FontMgr, Image, ImageFilter, Paint, PaintStyle, Path, Point, Rect, RuntimeEffect,
+    Shader, Surface, Vector,
+};
 
 static MAIN_FONT: &[u8] = include_bytes!("assets/lato/Lato-Regular.ttf");
 static MAIN_FONT_BOLD: &[u8] = include_bytes!("assets/lato/Lato-Bold.ttf");
@@ -138,8 +141,8 @@ impl Skia {
         let mut paint_background = Paint::default();
         let bg = Color::from_rgb(0x08, 0x1A, 0x30); // Deep Trench Blue
                                                     //let bg = Color::from_rgb(108, 192, 216);
-                                                    //let bg = Color::from_rgb(0xE0, 0xE0, 0xE0);
-                                                    //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
+        let bg = Color::from_rgb(0x40, 0x40, 0x40);
+        //        let bg = Color::from_rgb(0x0, 0x0, 0x0);
         paint_background.set_style(PaintStyle::Fill);
         paint_background.set_shader(self.create_noise_shader(bg, NOISE_MIX));
         self.get_canvas().draw_rect(Rect::from_xywh(0.0, 0.0, w as f32, h as f32), &paint_background);
