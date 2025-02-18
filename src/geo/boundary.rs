@@ -1,77 +1,64 @@
-use crate::geo::data::{Geo, GeoWithPath};
+use crate::geo::data::{Geo, GeoWithPath, Way, WayClass, WayPoint, WaySkia};
 use crate::geo::load::RATIO_ADJUST;
+use crate::geo::ways::{get_geometry, path_from_ways};
 use crate::gfx::skia::Skia;
+use gdal::vector::LayerAccess;
+use gdal::Dataset;
 use geo::LineString;
+use serde_cbor::from_reader;
 use skia_safe::paint::Style;
 use skia_safe::{scalar, Color, Paint, Path, Point, Vector};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::process::exit;
 
-pub fn convert_paths(geo: Vec<Geo>) -> Vec<GeoWithPath> {
-    let mut paths = Vec::new();
-    for y in geo.into_iter() {
-        // Create skia path
-        let mut polys = Vec::new();
-        y.geo.iter().for_each(|v| {
-            let path = build_path(v.exterior());
-            polys.push(path);
-        });
+pub fn create_boundaries() {
+    let dataset = Dataset::open("/Users/daryl/OSM/terr50_gpkg_gb/Data/terr50_gb.gpkg").unwrap();
+    // contour_line
+    let mut land_water_boundary = dataset.layer_by_name("land_water_boundary").unwrap();
+    let mut vec = Vec::new();
+    for feature in land_water_boundary.features() {
+        let geometry = feature.geometry().unwrap();
+        //geometry.simplify_preserve_topology(0.1).unwrap();
 
-        paths.push(GeoWithPath {
-            polys,
-        });
+        // Get all points
+        let my = get_geometry(geometry, false);
+        vec.push(my);
     }
-    paths
+    println!("There are {} boundary lines", vec.len());
+
+    // Serialise
+    let file = File::create("data/Boundaries.cbor").unwrap();
+    let writer = std::io::BufWriter::new(file);
+    serde_cbor::to_writer(writer, &vec).unwrap();
 }
 
-fn build_path(poly: &LineString) -> Path {
-    let mut path = Path::new();
-    poly.points().for_each(|point| {
-        let x = point.x() as scalar / RATIO_ADJUST;
-        let y = point.y() as scalar / RATIO_ADJUST;
-        if path.is_empty() {
-            path.move_to(Point::new(x, -y));
-        } else {
-            path.line_to(Point::new(x, -y));
-        }
+pub fn load_boundaries() -> Vec<Path> {
+    let file = File::open("data/Boundaries.cbor").expect("Unable to open boundaries file");
+    let reader = BufReader::new(file);
+
+    // Deserialize the CBOR data into a Vec<Location>
+    let boundaries: Vec<Vec<WayPoint>> = from_reader(reader).expect("Unable to read boundaries file");
+
+    let mut vec = Vec::new();
+    boundaries.iter().for_each(|line| {
+        let p = path_from_ways(line);
+        vec.push(p);
     });
-    path.close();
-    path
+    
+    println!("There are {} boundary lines", vec.len());
+    vec
 }
 
-pub fn draw_country(skia: &mut Skia, polys: &Vec<GeoWithPath>) {
+pub fn draw_boundaries(skia: &mut Skia, boundaries: &[Path]) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_style(Style::Stroke);
     paint.set_color(Color::BLACK);
-    paint.set_stroke_width(0.5);
+    paint.set_stroke_width(0.1);
 
-    let mut paint_shadow = Paint::default();
-    paint_shadow.set_anti_alias(true);
-    paint_shadow.set_style(Style::Fill);
-    paint_shadow.set_color(Color::BLACK);
-    paint_shadow.set_alpha(128);
-
-    let mut paint_fill = Paint::default();
-    paint_fill.set_anti_alias(true);
-    paint_fill.set_color(Color::from_rgb(0x50, 0x3A, 0x3C));
-    paint_fill.set_color(Color::from_rgb(0xC0, 0xC0, 0xC0));
-    paint_fill.set_style(Style::Fill);
-
-    // Draw "shadow"
-    skia.get_canvas().save();
-    let zz = 1.0;
-    skia.get_canvas().translate(Vector::new(zz, zz));
-    for geo in polys {
-        for path in geo.polys.iter() {
-            skia.get_canvas().draw_path(path, &paint_shadow);
-        }
-    }
-    skia.get_canvas().restore();
-
-    // And actual polys
-    for geo in polys {
-        for path in geo.polys.iter() {
-            skia.get_canvas().draw_path(path, &paint_fill);
-            skia.get_canvas().draw_path(path, &paint);
-        }
-    }
+    boundaries.iter().for_each(|line| {
+        skia.get_canvas().draw_path(line, &paint);
+    });
 }

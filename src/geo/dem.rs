@@ -2,7 +2,7 @@ use crate::geo::load::RATIO_ADJUST;
 use crate::gfx::skia::Skia;
 use proj::{Coord, Proj};
 use skia_safe::paint::Style;
-use skia_safe::{BlendMode, Color, FilterMode, FilterOptions, Image, MipmapMode, Paint, Rect, SamplingOptions, Vector};
+use skia_safe::{Color, FilterMode, Image, MipmapMode, Paint, Rect, SamplingOptions, Vector};
 
 pub fn draw_dem(skia: &mut Skia, image: &Image) {
     let mut paint = Paint::default();

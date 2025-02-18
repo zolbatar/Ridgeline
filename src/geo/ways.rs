@@ -3,27 +3,21 @@ use crate::geo::load::RATIO_ADJUST;
 use crate::gfx::skia::Skia;
 use gdal::vector::LayerAccess;
 use gdal::Dataset;
+use geos::Geometry;
 use serde_cbor::from_reader;
-use shapefile::dbase::{FieldValue, Record};
-use shapefile::{PolylineZ, ShapeType};
 use skia_safe::paint::Style;
-use skia_safe::svg::fe::Func;
-use skia_safe::wrapper::NativeTransmutableWrapper;
-use skia_safe::{scalar, Color, Paint, Point};
+use skia_safe::{scalar, Color, Paint, Path, Point};
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
-use std::process::exit;
 
 pub fn load_ways() -> HashMap<WayClass, Vec<WaySkia>> {
-    let file = File::open("data/Ways.cbor").expect("Unable to open Ways file");
+    let file = File::open("data/Ways.cbor").expect("Unable to open ways file");
     let reader = BufReader::new(file);
 
     // Deserialize the CBOR data into a Vec<Location>
-    let locations: HashMap<WayClass, Vec<Way>> = from_reader(reader).expect("Unable to read Ways file");
+    let locations: HashMap<WayClass, Vec<Way>> = from_reader(reader).expect("Unable to read ways file");
 
     let mut ways = HashMap::new();
     let mut count = 0;
@@ -32,15 +26,7 @@ pub fn load_ways() -> HashMap<WayClass, Vec<WaySkia>> {
         count += locations.len();
         let mv = ways.get_mut(&class).unwrap();
         for location in locations.iter() {
-            let mut p = skia_safe::Path::new();
-            location.way_points.iter().enumerate().for_each(|(_, wp)| {
-                let cpp = Point::new(wp.x as scalar, -wp.y as scalar);
-                if wp.is_start {
-                    p.move_to(cpp);
-                } else {
-                    p.line_to(cpp);
-                }
-            });
+            let p = path_from_ways(&location.way_points);
             mv.push(WaySkia {
                 class: location.class.clone(),
                 _form: location.form.clone(),
@@ -51,6 +37,19 @@ pub fn load_ways() -> HashMap<WayClass, Vec<WaySkia>> {
 
     println!("There are {} ways in {} classes", count, ways.len());
     ways
+}
+
+pub fn path_from_ways(points: &Vec<WayPoint>) -> Path {
+    let mut p = Path::new();
+    points.iter().for_each(|wp| {
+        let cpp = Point::new(wp.x as scalar, -wp.y as scalar);
+        if wp.is_start {
+            p.move_to(cpp);
+        } else {
+            p.line_to(cpp);
+        }
+    });
+    p
 }
 
 pub fn serialize_ways(m: HashMap<WayClass, Vec<Way>>) -> Result<(), Box<dyn Error>> {
@@ -83,8 +82,8 @@ pub fn create_ways() {
 
         // Get feature values
         let road_classification = extract_string("road_classification");
-        let road_function = extract_string("road_function");
-        let road_number = extract_string("road_number");
+        let _road_function = extract_string("road_function");
+        let _road_number = extract_string("road_number");
         let form_of_way = extract_string("form_of_way");
         let name = extract_string("name_1");
 
@@ -112,16 +111,7 @@ pub fn create_ways() {
 
         // Geometry
         let geometry = feature.geometry().unwrap();
-        //geometry.simplify_preserve_topology(0.1).unwrap();
-        let mut my = Vec::new();
-        for i in 0..geometry.point_count() {
-            let (x, y, _) = geometry.get_point(i as i32);
-            my.push(WayPoint {
-                is_start: i == 0,
-                x: x / RATIO_ADJUST as f64,
-                y: y / RATIO_ADJUST as f64,
-            });
-        }
+        let my = get_geometry(geometry, false);
 
         // And save
         ways.push(Way {
@@ -150,7 +140,23 @@ pub fn create_ways() {
     serde_cbor::to_writer(writer, &waypoints_concat).unwrap();
 }
 
-pub fn optimise_ways() -> HashMap<WayClass, Vec<Way>> {
+pub fn get_geometry(geometry: &gdal::vector::Geometry, simplify: bool) -> Vec<WayPoint> {
+    let mut my = Vec::new();
+    if simplify {
+        geometry.simplify(0.1).unwrap();
+    }
+    for i in 0..geometry.point_count() {
+        let (x, y, _) = geometry.get_point(i as i32);
+        my.push(WayPoint {
+            is_start: i == 0,
+            x: x / RATIO_ADJUST as f64,
+            y: y / RATIO_ADJUST as f64,
+        });
+    }
+    my
+}
+
+pub fn categorise_ways() -> HashMap<WayClass, Vec<Way>> {
     let file = File::open("data/WaysRaw.cbor").expect("Unable to open WaysRaw file");
     let reader = BufReader::new(file);
     let waypoints_concat: HashMap<String, Vec<Way>> = from_reader(reader).expect("Unable to read WaysRaw file");
@@ -162,40 +168,14 @@ pub fn optimise_ways() -> HashMap<WayClass, Vec<Way>> {
     whm.insert(WayClass::Motorway, Vec::new());
     whm.insert(WayClass::Unclassified, Vec::new());
     whm.insert(WayClass::Unknown, Vec::new());
-    let mut count_before = 0;
     let mut count = 0;
-    for (name, way) in waypoints_concat.into_iter() {
+    for (_name, way) in waypoints_concat.into_iter() {
         way.into_iter().for_each(|way| {
             count += way.way_points.len();
             whm.get_mut(&way.class).unwrap().push(way);
         });
-
-        //        let mut v = Vec::new();
-        /*for segment in way.into_iter() {
-            count_before += segment.way_points.len();
-
-            // Fill CoordSeq with coordinate values
-            let mut coord_seq = CoordSeq::new(segment.way_points.len() as u32, CoordDimensions::TwoD).unwrap();
-            for (i, coord) in segment.way_points.iter().enumerate() {
-                coord_seq.set_x(i, coord.x).unwrap();
-                coord_seq.set_y(i, coord.y).unwrap();
-            }
-            let ls = Geometry::create_line_string(coord_seq).unwrap();
-            v.push(ls);
-        }
-        let result = union_linestrings(&v);
-        //        println!("{:?}", result);
-        let aa = 1;*/
-
-        // Optimise way
-        /*        let road_network = waypoints_to_multilinestring(way.way_points);
-        let road_network_simplified = optimize_multilinestring(&road_network, 0.001);
-        let waypoints = multilinestring_to_waypoints(road_network_simplified);
-        way.way_points = waypoints;*/
-
-        //        v.push(way);
     }
-    println!("There are {}/{} raw points", count_before, count);
+    println!("There are {} raw points", count);
 
     whm
 }
@@ -209,6 +189,8 @@ pub fn draw_ways(skia: &mut Skia, ways: &HashMap<WayClass, Vec<WaySkia>>) {
 }
 
 fn draw_ways_type(skia: &mut Skia, ways: &[WaySkia]) {
+    let anti_alias = true;
+    
     let mut paint_motorway = Paint::default();
     paint_motorway.set_anti_alias(true);
     paint_motorway.set_style(Style::Stroke);
@@ -216,25 +198,25 @@ fn draw_ways_type(skia: &mut Skia, ways: &[WaySkia]) {
     paint_motorway.set_stroke_width(0.25);
 
     let mut paint_a_road = Paint::default();
-    paint_a_road.set_anti_alias(true);
+    paint_a_road.set_anti_alias(anti_alias);
     paint_a_road.set_style(Style::Stroke);
     paint_a_road.set_color(Color::GREEN);
     paint_a_road.set_stroke_width(0.1);
 
     let mut paint_b_road = Paint::default();
-    paint_b_road.set_anti_alias(true);
+    paint_b_road.set_anti_alias(anti_alias);
     paint_b_road.set_style(Style::Stroke);
     paint_b_road.set_color(Color::from_rgb(232, 144, 30));
     paint_b_road.set_stroke_width(0.025);
 
     let mut paint_unclassified_road = Paint::default();
-    paint_unclassified_road.set_anti_alias(true);
+    paint_unclassified_road.set_anti_alias(anti_alias);
     paint_unclassified_road.set_style(Style::Stroke);
     paint_unclassified_road.set_color(Color::BLACK);
     paint_unclassified_road.set_stroke_width(0.025);
 
     let mut paint_unknown_road = Paint::default();
-    paint_unknown_road.set_anti_alias(true);
+    paint_unknown_road.set_anti_alias(anti_alias);
     paint_unknown_road.set_style(Style::Stroke);
     paint_unknown_road.set_color(Color::GRAY);
     paint_unknown_road.set_stroke_width(0.025);
@@ -242,7 +224,7 @@ fn draw_ways_type(skia: &mut Skia, ways: &[WaySkia]) {
     ways.iter().for_each(|w| {
         match w.class {
             WayClass::Unknown => {
-                skia.get_canvas().draw_path(&w.path, &paint_unknown_road);
+//                skia.get_canvas().draw_path(&w.path, &paint_unknown_road);
             }
             WayClass::Unclassified => {
                 skia.get_canvas().draw_path(&w.path, &paint_unclassified_road);

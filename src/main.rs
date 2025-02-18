@@ -1,6 +1,5 @@
 use crate::app_state::AppState;
 use crate::game::player::{Player, PlayerType};
-use crate::geo::boundary::draw_country;
 use crate::geo::cities::draw_all_cities;
 use crate::geo::dem::draw_dem;
 use crate::geo::load::{create_geo, load};
@@ -10,6 +9,7 @@ use crate::gfx::skia::Skia;
 use crate::input::{handle_mouse_button_down, handle_mouse_button_up, handle_mouse_motion, handle_mouse_wheel};
 use sdl2::event::Event;
 use std::process::exit;
+use crate::geo::boundary::draw_boundaries;
 // https://osdatahub.os.uk/downloads/open/OpenRoads
 
 mod app_state;
@@ -23,7 +23,7 @@ fn main() {
     let mut skia = Skia::new(&sdl);
 
     // Create and load geo data
-    create_geo();
+    //create_geo();
     let geo_and_cities = load(5.0).expect("Failed to load geojson");
 
     // App state
@@ -44,8 +44,8 @@ fn main() {
         sdl.frame_start();
         skia.set_matrix(&sdl);
         skia.set_zoom_target(&sdl);
-        //        draw_country(&mut skia, &geo_and_cities.geo_with_path);
         draw_dem(&mut skia, &geo_and_cities.dem);
+        draw_boundaries(&mut skia, &geo_and_cities.boundaries);
         draw_ways(&mut skia, &geo_and_cities.ways);
         draw_all_cities(&mut skia, &app_state);
 

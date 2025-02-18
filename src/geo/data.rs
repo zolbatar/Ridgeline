@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use geo::Polygon;
 use serde::{Deserialize, Serialize};
 use skia_safe::{Image, Path};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -18,10 +18,10 @@ pub struct Geo {
 }
 
 pub struct GeoWithPathAndCities {
-    pub geo_with_path: Vec<GeoWithPath>,
     pub cities: Vec<Rc<Location>>,
     pub ways: HashMap<WayClass, Vec<WaySkia>>,
     pub dem: Image,
+    pub boundaries: Vec<Path>,
 }
 
 pub struct GeoWithPath {

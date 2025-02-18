@@ -42,7 +42,7 @@ impl Sdl {
 
         // Create an SDL2 window
         let window = video
-            .window("Ridgeline", WINDOW_WIDTH, WINDOW_HEIGHT)
+            .window("UK Mapping", WINDOW_WIDTH, WINDOW_HEIGHT)
             .position_centered()
             .opengl()
             .allow_highdpi()

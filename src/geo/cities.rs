@@ -1,13 +1,12 @@
 use crate::app_state::AppState;
-use crate::game::player::PlayerType;
 use crate::geo::data::Location;
 use crate::geo::load::RATIO_ADJUST;
-use crate::gfx::skia::{Skia, LABEL_SIZE};
+use crate::gfx::skia::Skia;
 use serde_cbor::from_reader;
 use skia_safe::image_filters::drop_shadow_only;
 use skia_safe::paint::Style;
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{scalar, Color, Paint, Point, Rect, Vector};
+use skia_safe::{scalar, Color, Paint, Point, Vector};
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
@@ -15,7 +14,7 @@ use std::rc::Rc;
 pub fn draw_all_cities(skia: &mut Skia, app_state: &AppState) {
     let font = &skia.font_label.clone();
     let font_bold = &skia.font_label_bold.clone();
-    let descent = font.metrics().1.descent;
+    let _descent = font.metrics().1.descent;
 
     let mut paint = Paint::default();
     paint.set_anti_alias(true);

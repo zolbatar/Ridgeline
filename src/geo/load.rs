@@ -1,11 +1,10 @@
-use crate::geo::boundary::convert_paths;
+use crate::geo::boundary::{create_boundaries, load_boundaries};
 use crate::geo::cities::load_cities_cbor_file;
 use crate::geo::data::{Geo, GeoWithPathAndCities};
-use crate::geo::ways::{create_ways, load_ways, optimise_ways, serialize_ways};
+use crate::geo::ways::{load_ways, categorise_ways, serialize_ways};
 use crate::gfx::skia::load_image_from_file;
 use geo::Geometry;
 use geojson::GeoJson;
-use serde_cbor::from_reader;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -13,9 +12,10 @@ use std::io::BufReader;
 pub const RATIO_ADJUST: f32 = 1000.0;
 
 pub fn create_geo() {
-    load_geojson();
+    //load_geojson();
     //create_ways();
-    let ways = optimise_ways();
+    //create_boundaries();
+    let ways = categorise_ways();
     serialize_ways(ways).expect("Unable to serialize Ways");
 }
 
@@ -62,18 +62,16 @@ fn load_geojson() {
 }
 
 pub fn load(radius: f64) -> Result<GeoWithPathAndCities, Box<dyn Error>> {
-    let file = File::open("data/Geo.cbor")?;
-    let reader = BufReader::new(file);
-    let data: Vec<Geo> = from_reader(reader)?;
     let cities = load_cities_cbor_file("data/Cities.cbor", radius);
     let ways = load_ways();
+    let boundaries = load_boundaries();
     let image = load_image_from_file("data/hillshade.png");
 
     // Convert to Skia
     Ok(GeoWithPathAndCities {
-        geo_with_path: convert_paths(data),
         cities,
         ways,
         dem: image,
+        boundaries,
     })
 }

@@ -33,7 +33,6 @@ pub struct Skia {
     pub panning: bool,
     pub noise_shader: RuntimeEffect,
     pub drop_shadow: Option<ImageFilter>,
-    pub drop_shadow_white: Option<ImageFilter>,
 }
 
 impl Skia {
@@ -76,7 +75,6 @@ impl Skia {
 
         // Filters
         let drop_shadow = drop_shadow_only(Vector::new(3.0, 3.0), (5.0, 5.0), Color::BLACK, None, None, None);
-        let drop_shadow_white = drop_shadow_only(Vector::new(1.5, 1.5), (2.0, 2.0), Color::from_argb(64, 255, 255, 255), None, None, None);
 
         // Surface
         let surface = Skia::make_surface(&mut context, (sdl.width as f32 * sdl.dpi) as i32, (sdl.height as f32 * sdl.dpi) as i32);
@@ -94,7 +92,6 @@ impl Skia {
             panning: false,
             noise_shader,
             drop_shadow,
-            drop_shadow_white: drop_shadow_white,
         };
 
         unsafe {
